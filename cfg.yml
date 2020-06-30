@@ -1,0 +1,3 @@
+server: perftcl2.perflab.zoomint.com
+path: ./dump
+days: 5

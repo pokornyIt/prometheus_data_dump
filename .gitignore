@@ -92,3 +92,4 @@ vendor/
 .idea/modules.xml
 .idea/vcs.xml
 /.idea/nut_exporter.iml
+dump/
