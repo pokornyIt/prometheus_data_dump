@@ -16,8 +16,8 @@ import (
 const connectionTimeout = 10
 
 type Config struct {
-	Server  string   `yaml:"server" json:"server"`
-	Path    string   `yaml:"path" json:"path"`
+	Server  string   `yaml:"server" json:"server"` // FQDN or IP address of server
+	Path    string   `yaml:"path" json:"path"`     // path to store directory
 	Days    int      `yaml:"days" json:"days"`
 	Targets []string `yaml:"targets" json:"targets"`
 }
@@ -130,4 +130,8 @@ func (c *Config) print() string {
 		a = fmt.Sprintf("%sTargets:      [%s]\r\n", a, strings.Join(c.Targets, ", "))
 	}
 	return a
+}
+
+func (c *Config) filePath(fileName string) string {
+	return filepath.Join(c.Path, fileName)
 }

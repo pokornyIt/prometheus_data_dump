@@ -51,6 +51,25 @@ func RandomString() string {
 	return sb.String()
 }
 
+func containsString(slice []string, item string) bool {
+	set := make(map[string]struct{}, len(slice))
+	for _, s := range slice {
+		set[s] = struct{}{}
+	}
+
+	_, ok := set[item]
+	return ok
+}
+
+func saveMetaData() {
+	l, _ := readTargetsList()
+	metricsMeta := NewMetricsMetaList(*l)
+	metricsMeta.onlyForJobs([]string{"node_exporter_zqm", "cucm_monitor"})
+	metricsMeta.saveList()
+
+	_ = level.Info(logger).Log("msg", fmt.Sprintf("Metrics in meta data %d", len(*metricsMeta)))
+}
+
 func main() {
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
@@ -76,7 +95,6 @@ func main() {
 		fmt.Printf("Program did not start due to configuration error! \r\n\tError: %s", err)
 		os.Exit(1)
 	}
+	saveMetaData()
 
-	l, _ := readTargetsList()
-	fmt.Printf("Targets: %d", len(*l))
 }

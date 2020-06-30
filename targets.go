@@ -16,15 +16,17 @@ type TargetData struct {
 	Unit   string            `json:"unit,omitempty"`
 }
 
-func UnmarshalTargets(data []byte) (*[]TargetData, error) {
-	var t []TargetData
+type TargetList []TargetData
+
+func UnmarshalTargets(data []byte) (*TargetList, error) {
+	var t TargetList
 	if err := json.Unmarshal(data, &t); err != nil {
 		return nil, err
 	}
 	return &t, nil
 }
 
-func readTargetsList() (*[]TargetData, error) {
+func readTargetsList() (*TargetList, error) {
 	read, err := GetApiData("targets/metadata")
 	if err != nil {
 		_ = level.Error(logger).Log("msg", "problem collect targets details")
@@ -37,4 +39,18 @@ func readTargetsList() (*[]TargetData, error) {
 	s := string(*read.Data)
 	t, err := UnmarshalTargets([]byte(s))
 	return t, err
+}
+
+func (t *TargetList) cleanAndFilterJobs(jobNames []string) *MetricsMetaList {
+	m := MetricsMetaList{}
+	if jobNames == nil || len(jobNames) == 0 {
+		return &m
+	}
+	for i := len(*t) - 1; i >= 0; i-- {
+		if !containsString(jobNames, (*t)[i].Target["job"]) {
+			*t = append((*t)[:i], (*t)[i+1:]...)
+		}
+	}
+
+	return &m
 }
