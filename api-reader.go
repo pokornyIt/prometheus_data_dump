@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/tls"
 	"fmt"
 	"github.com/go-kit/kit/log/level"
@@ -23,16 +22,16 @@ func getFormUri(uri string) (data []byte, err error) {
 	return finishApiRequest(req)
 }
 
-func postFromUri(uri string, body []byte) (data []byte, err error) {
-	uri = fmt.Sprintf(UriFormat, config.Server, uri)
-	_ = level.Info(logger).Log("msg", "post and read data from server ", "uri", uri)
-	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(body))
-	if err != nil {
-		_ = level.Error(logger).Log("msg", "problem create request for uri "+uri, "error", err)
-		return nil, err
-	}
-	return finishApiRequest(req)
-}
+//func postFromUri(uri string, body []byte) (data []byte, err error) {
+//	uri = fmt.Sprintf(UriFormat, config.Server, uri)
+//	_ = level.Info(logger).Log("msg", "post and read data from server ", "uri", uri)
+//	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(body))
+//	if err != nil {
+//		_ = level.Error(logger).Log("msg", "problem create request for uri "+uri, "error", err)
+//		return nil, err
+//	}
+//	return finishApiRequest(req)
+//}
 
 func finishApiRequest(req *http.Request) (data []byte, err error) {
 	tr := &http.Transport{

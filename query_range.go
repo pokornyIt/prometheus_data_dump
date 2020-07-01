@@ -20,7 +20,7 @@ var pointRex = regexp.MustCompile(`\[(\d+\.?\d*)\,\"([^\"]+)\"\]`)
 type Point struct {
 	T model.Time
 	V float64
-	U string
+	//U string
 }
 
 type Series struct {
@@ -50,7 +50,7 @@ func (p *Point) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	p.U = p.T.Time().Format(time.RFC3339)
+	//p.U = p.T.Time().Format(time.RFC3339)
 	p.V, err = strconv.ParseFloat(match[2], 64)
 	if err != nil {
 		return err
