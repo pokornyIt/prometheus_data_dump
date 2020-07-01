@@ -16,10 +16,11 @@ import (
 const connectionTimeout = 10
 
 type Config struct {
-	Server  string   `yaml:"server" json:"server"` // FQDN or IP address of server
-	Path    string   `yaml:"path" json:"path"`     // path to store directory
-	Days    int      `yaml:"days" json:"days"`
-	Targets []string `yaml:"targets" json:"targets"`
+	Server string   `yaml:"server" json:"server"` // FQDN or IP address of server
+	Path   string   `yaml:"path" json:"path"`     // path to store directory
+	Days   int      `yaml:"days" json:"days"`
+	Jobs   []string `yaml:"jobs" json:"jobs"`
+	Step   int      `yaml:"step" json:"step"`
 }
 
 var (
@@ -28,10 +29,11 @@ var (
 	directoryData = kingpin.Flag("path", "Path where store export json data").PlaceHolder("path").Default("./dump").String()
 	server        = kingpin.Flag("server", "Prometheus server FQDN or IP address").PlaceHolder("server").Default("").String()
 	config        = &Config{
-		Server:  "",
-		Path:    "./dump",
-		Days:    1,
-		Targets: []string{},
+		Server: "",
+		Path:   "./dump",
+		Days:   1,
+		Jobs:   []string{},
+		Step:   10,
 	}
 )
 
@@ -110,6 +112,9 @@ func (c *Config) LoadFile(filename string) error {
 	if c.Days < 1 || c.Days > 60 {
 		return errors.New("defined days back not valid (1 - 60)")
 	}
+	if c.Step < 1 || c.Step > 60*60 {
+		c.Step = 10
+	}
 	if !dirExists(c.Path) {
 		return errors.New("path not exists")
 	}
@@ -124,10 +129,10 @@ func (c *Config) print() string {
 	a = fmt.Sprintf("%sServer:       [%s]\r\n", a, c.Server)
 	a = fmt.Sprintf("%sData path:    [%s]\r\n", a, c.Path)
 	a = fmt.Sprintf("%sDays back:    [%d]\r\n", a, c.Days)
-	if len(c.Targets) == 0 {
+	if len(c.Jobs) == 0 {
 		a = fmt.Sprintf("%sTargets:      [--all--]\r\n", a)
 	} else {
-		a = fmt.Sprintf("%sTargets:      [%s]\r\n", a, strings.Join(c.Targets, ", "))
+		a = fmt.Sprintf("%sJobs:         [%s]\r\n", a, strings.Join(c.Jobs, ", "))
 	}
 	return a
 }

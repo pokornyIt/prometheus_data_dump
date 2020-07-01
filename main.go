@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -31,6 +32,7 @@ var (
 	BuildDate     string
 	src           = rand.NewSource(time.Now().UnixNano()) // randomize base string
 	maxRandomSize = 10                                    // required size of random string
+	metricsMeta   *MetricsMetaList
 )
 
 func RandomString() string {
@@ -63,11 +65,42 @@ func containsString(slice []string, item string) bool {
 
 func saveMetaData() {
 	l, _ := readTargetsList()
-	metricsMeta := NewMetricsMetaList(*l)
-	metricsMeta.onlyForJobs([]string{"node_exporter_zqm", "cucm_monitor"})
+	metricsMeta = NewMetricsMetaList(*l)
+	metricsMeta.onlyForJobs(config.Jobs)
 	metricsMeta.saveList()
 
-	_ = level.Info(logger).Log("msg", fmt.Sprintf("Metrics in meta data %d", len(*metricsMeta)))
+	_ = level.Info(logger).Log("msg", fmt.Sprintf("metrics in meta data %d", len(*metricsMeta)))
+}
+
+func saveData() {
+	var wg sync.WaitGroup
+	_ = level.Debug(logger).Log("msg", fmt.Sprintf("start %d goroutines for collect metrics for %d days ", len(*metricsMeta), config.Days))
+	for _, metrics := range *metricsMeta {
+		wg.Add(1)
+		go collectOneMetrics(&wg, metrics.Metric)
+	}
+	_ = level.Debug(logger).Log("msg", "all goroutines started")
+	wg.Wait()
+	_ = level.Debug(logger).Log("msg", "data store finish")
+}
+
+func collectOneMetrics(wg *sync.WaitGroup, metricName string) {
+	defer wg.Done()
+	m := Matrix{}
+	for i := 0; i < config.Days; i++ {
+		c, err := getRangeDay(metricName+"{}", 1)
+		if err != nil {
+			continue
+		}
+		for _, series := range *c {
+			m = append(m, series)
+		}
+	}
+	if len(m) == 0 {
+		_ = level.Error(logger).Log("msg", "for metrics "+metricName+" not any data")
+	} else {
+		m.save(metricName)
+	}
 }
 
 func main() {
@@ -96,5 +129,6 @@ func main() {
 		os.Exit(1)
 	}
 	saveMetaData()
+	saveData()
 
 }
