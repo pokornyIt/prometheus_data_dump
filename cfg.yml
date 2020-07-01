@@ -1,0 +1,6 @@
+server: perftcl2.perflab.zoomint.com
+path: ./dump
+days: 2
+jobs:
+  - node_exporter_zqm
+  - cucm_monitor

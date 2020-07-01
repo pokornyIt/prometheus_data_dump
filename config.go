@@ -3,28 +3,37 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 )
 
+const connectionTimeout = 10
+
 type Config struct {
-	Server string `yaml:"server" json:"server"`
-	Path   string `yaml:"path" json:"path"`
-	Days   int    `yaml:"days" json:"days"`
+	Server string   `yaml:"server" json:"server"` // FQDN or IP address of server
+	Path   string   `yaml:"path" json:"path"`     // path to store directory
+	Days   int      `yaml:"days" json:"days"`
+	Jobs   []string `yaml:"jobs" json:"jobs"`
+	Step   int      `yaml:"step" json:"step"`
 }
 
 var (
-	showConfig = kingpin.Flag("config.show", "Show actual configuration and ends").Default("false").Bool()
-	configFile = kingpin.Flag("config.file", "Configuration file default is \"cfg.yml\".").PlaceHolder("cfg.yml").Default("cfg.yml").String()
-	path       = kingpin.Flag("path", "Path where store export json data").PlaceHolder("path").Default("./dump").String()
-	server     = kingpin.Flag("server", "Prometheus server FQDN or IP address").PlaceHolder("server").Default("").String()
-	config     = &Config{
+	showConfig    = kingpin.Flag("config.show", "Show actual configuration and ends").Default("false").Bool()
+	configFile    = kingpin.Flag("config.file", "Configuration file default is \"cfg.yml\".").PlaceHolder("cfg.yml").Default("cfg.yml").String()
+	directoryData = kingpin.Flag("path", "Path where store export json data").PlaceHolder("path").Default("./dump").String()
+	server        = kingpin.Flag("server", "Prometheus server FQDN or IP address").PlaceHolder("server").Default("").String()
+	config        = &Config{
 		Server: "",
 		Path:   "./dump",
 		Days:   1,
+		Jobs:   []string{},
+		Step:   10,
 	}
 )
 
@@ -44,8 +53,25 @@ func dirExists(path string) bool {
 	return info.IsDir()
 }
 
-func dirAccessible(path string) bool {
-
+func dirAccessible(directory string) bool {
+	var file string
+	dir, err := filepath.Abs(directory)
+	if err != nil {
+		dir = directory
+	}
+	for ok := true; ok; ok = fileExists(file) {
+		file = filepath.Join(dir, RandomString()+".tmp")
+	}
+	f, err := os.Create(file)
+	if err == nil {
+		_ = f.Close()
+		e := os.Remove(file)
+		if e != nil {
+			fmt.Printf("Problem test access to store directory. " + e.Error())
+			os.Exit(1)
+		}
+	}
+	return err == nil
 }
 
 func (c *Config) LoadFile(filename string) error {
@@ -65,8 +91,8 @@ func (c *Config) LoadFile(filename string) error {
 	if len(*server) > 0 {
 		c.Server = *server
 	}
-	if len(*path) > 0 {
-		c.Path = *path
+	if len(*directoryData) > 0 {
+		c.Path = *directoryData
 	}
 
 	match, err := regexp.MatchString("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$", c.Server)
@@ -79,8 +105,15 @@ func (c *Config) LoadFile(filename string) error {
 	if len(c.Path) < 1 {
 		c.Path = "./dump"
 	}
+	p, err := filepath.Abs(c.Path)
+	if err == nil {
+		c.Path = p
+	}
 	if c.Days < 1 || c.Days > 60 {
 		return errors.New("defined days back not valid (1 - 60)")
+	}
+	if c.Step < 1 || c.Step > 60*60 {
+		c.Step = 10
 	}
 	if !dirExists(c.Path) {
 		return errors.New("path not exists")
@@ -89,4 +122,21 @@ func (c *Config) LoadFile(filename string) error {
 		return errors.New("path not accessible for write")
 	}
 	return nil
+}
+
+func (c *Config) print() string {
+	a := fmt.Sprintf("\r\n%s\r\nActual configuration:\r\n", applicationName)
+	a = fmt.Sprintf("%sServer:       [%s]\r\n", a, c.Server)
+	a = fmt.Sprintf("%sData path:    [%s]\r\n", a, c.Path)
+	a = fmt.Sprintf("%sDays back:    [%d]\r\n", a, c.Days)
+	if len(c.Jobs) == 0 {
+		a = fmt.Sprintf("%sTargets:      [--all--]\r\n", a)
+	} else {
+		a = fmt.Sprintf("%sJobs:         [%s]\r\n", a, strings.Join(c.Jobs, ", "))
+	}
+	return a
+}
+
+func (c *Config) filePath(fileName string) string {
+	return filepath.Join(c.Path, fileName)
 }
