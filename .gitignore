@@ -91,5 +91,5 @@ vendor/
 .idea/misc.xml
 .idea/modules.xml
 .idea/vcs.xml
-/.idea/prometehus_export.iml
 dump/
+/.idea/prometheus_data_dump.iml

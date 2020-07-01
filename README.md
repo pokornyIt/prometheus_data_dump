@@ -1,4 +1,4 @@
-# Prometheus Export
+# Prometheus Data Dump
 Dump data from prometheus to JSON files.
 
 Program dump all metrics for selected jobs into JSON files.
@@ -7,7 +7,7 @@ Program dump all metrics for selected jobs into JSON files.
 
 Program has config file.
 ```yaml
-server: perftcl2.perflab.zoomint.com
+server: prometehus.server
 path: ./dump
 days: 2
 jobs:
