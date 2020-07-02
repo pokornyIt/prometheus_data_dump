@@ -74,27 +74,16 @@ func dirAccessible(directory string) bool {
 	return err == nil
 }
 
-func (c *Config) LoadFile(filename string) error {
-	if fileExists(filename) {
-		content, err := ioutil.ReadFile(filename)
-		if err != nil {
-			return err
-		}
-		err = yaml.UnmarshalStrict(content, c)
-		if err != nil {
-			err = json.Unmarshal(content, c)
-			if err != nil {
-				return err
-			}
-		}
-	}
+func (c *Config) overWriteFromLine() {
 	if len(*server) > 0 {
 		c.Server = *server
 	}
 	if len(*directoryData) > 0 {
 		c.Path = *directoryData
 	}
+}
 
+func (c *Config) validate() error {
 	match, err := regexp.MatchString("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$", c.Server)
 	if !match || err != nil {
 		match, err = regexp.MatchString("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$", c.Server)
@@ -112,7 +101,7 @@ func (c *Config) LoadFile(filename string) error {
 	if c.Days < 1 || c.Days > 60 {
 		return errors.New("defined days back not valid (1 - 60)")
 	}
-	if c.Step < 1 || c.Step > 60*60 {
+	if c.Step < 5 || c.Step > 3600 {
 		c.Step = 10
 	}
 	if !dirExists(c.Path) {
@@ -122,6 +111,24 @@ func (c *Config) LoadFile(filename string) error {
 		return errors.New("path not accessible for write")
 	}
 	return nil
+}
+
+func (c *Config) LoadFile(filename string) error {
+	if fileExists(filename) {
+		content, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+		err = yaml.UnmarshalStrict(content, c)
+		if err != nil {
+			err = json.Unmarshal(content, c)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	c.overWriteFromLine()
+	return c.validate()
 }
 
 func (c *Config) print() string {

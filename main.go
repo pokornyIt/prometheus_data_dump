@@ -77,10 +77,8 @@ func saveData(metricsMeta *MetricsMetaList) {
 	var wg sync.WaitGroup
 	_ = level.Debug(logger).Log("msg", fmt.Sprintf("start %d goroutines for collect metrics for %d days ", len(*metricsMeta), config.Days))
 	for _, metrics := range *metricsMeta {
-		if metrics.Metric == "cucm_calls_completed" {
-			wg.Add(1)
-			collectOneMetrics(&wg, metrics.Metric)
-		}
+		wg.Add(1)
+		go collectOneMetrics(&wg, metrics.Metric)
 	}
 	_ = level.Debug(logger).Log("msg", "all goroutines started")
 	wg.Wait()
