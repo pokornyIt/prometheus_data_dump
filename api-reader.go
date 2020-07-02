@@ -13,7 +13,7 @@ const UriFormat = "http://%s:9090/api/v1/%s"
 
 func getFormUri(uri string) (data []byte, err error) {
 	uri = fmt.Sprintf(UriFormat, config.Server, uri)
-	_ = level.Info(logger).Log("msg", "read data from server ", "uri", uri)
+	_ = level.Debug(logger).Log("msg", "read data from server ", "uri", uri)
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		_ = level.Error(logger).Log("msg", "problem create request for uri "+uri, "error", err)
@@ -50,6 +50,6 @@ func finishApiRequest(req *http.Request) (data []byte, err error) {
 		_ = level.Error(logger).Log("msg", "problem read data from response", "error", err)
 		return nil, err
 	}
-	_ = level.Debug(logger).Log("msg", "success read "+string(len(bodies))+" bytes from uri")
+	_ = level.Debug(logger).Log("msg", fmt.Sprintf("success read %d bytes from uri", len(bodies)))
 	return bodies, nil
 }
