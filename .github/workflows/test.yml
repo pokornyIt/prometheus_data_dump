@@ -1,4 +1,4 @@
-name: Build
+name: Test
 
 on:
   push:
@@ -35,6 +35,3 @@ jobs:
 
       - name: Test
         run: go test -v .
-
-      - name: Show Data
-        run: ./prometehus_export --version

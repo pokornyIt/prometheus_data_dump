@@ -32,7 +32,7 @@ var (
 	BuildDate     string
 	src           = rand.NewSource(time.Now().UnixNano()) // randomize base string
 	maxRandomSize = 10                                    // required size of random string
-	metricsMeta   *MetricsMetaList
+	//metricsMeta   *MetricsMetaList
 )
 
 func RandomString() string {
@@ -63,16 +63,17 @@ func containsString(slice []string, item string) bool {
 	return ok
 }
 
-func saveMetaData() {
+func saveMetaData() *MetricsMetaList {
 	l, _ := readTargetsList()
-	metricsMeta = NewMetricsMetaList(*l)
+	metricsMeta := NewMetricsMetaList(*l)
 	metricsMeta.onlyForJobs(config.Jobs)
 	metricsMeta.saveList()
 
 	_ = level.Info(logger).Log("msg", fmt.Sprintf("metrics in meta data %d", len(*metricsMeta)))
+	return metricsMeta
 }
 
-func saveData() {
+func saveData(metricsMeta *MetricsMetaList) {
 	var wg sync.WaitGroup
 	_ = level.Debug(logger).Log("msg", fmt.Sprintf("start %d goroutines for collect metrics for %d days ", len(*metricsMeta), config.Days))
 	for _, metrics := range *metricsMeta {
@@ -88,18 +89,21 @@ func collectOneMetrics(wg *sync.WaitGroup, metricName string) {
 	defer wg.Done()
 	m := Matrix{}
 	for i := 0; i < config.Days; i++ {
-		c, err := getRangeDay(metricName+"{}", 1)
+		c, err := getRangeDay(metricName+"{}", i+1)
 		if err != nil {
 			continue
 		}
+		l := len(m)
 		for _, series := range *c {
-			m = append(m, series)
+			m.appendSeries(series)
 		}
+		_ = level.Debug(logger).Log("msg", fmt.Sprintf("in metrics %s add new %d series", metricName, len(m)-l))
 	}
 	if len(m) == 0 {
 		_ = level.Error(logger).Log("msg", "for metrics "+metricName+" not any data")
 	} else {
 		m.save(metricName)
+		_ = level.Debug(logger).Log("msg", "save data for metrics "+metricName)
 	}
 }
 
@@ -128,7 +132,6 @@ func main() {
 		fmt.Printf("Program did not start due to configuration error! \r\n\tError: %s", err)
 		os.Exit(1)
 	}
-	saveMetaData()
-	saveData()
-
+	m := saveMetaData()
+	saveData(m)
 }
