@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-type Matrix []Series
+type matrix []series
 
-func (m Matrix) String() string {
+func (m matrix) String() string {
 	strs := make([]string, len(m))
 	for i, ss := range m {
 		strs[i] = ss.String()
@@ -17,9 +17,9 @@ func (m Matrix) String() string {
 	return strings.Join(strs, "\n")
 }
 
-func (m *Matrix) UnmarshalJSON(data []byte) error {
-	var s []Series
-	s = []Series{}
+// Implement json Unmarshaler interface
+func (m *matrix) UnmarshalJSON(data []byte) error {
+	var s []series
 	err := json.Unmarshal(data, &s)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func (m *Matrix) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *Matrix) containsSeries(series Series) bool {
+func (m *matrix) containsSeries(series series) bool {
 	if len(series.Metric) == 0 {
 		return false
 	}
@@ -39,7 +39,7 @@ func (m *Matrix) containsSeries(series Series) bool {
 	return contain
 }
 
-func (m *Matrix) save(metricsName string) {
+func (m *matrix) save(metricsName string) {
 	name := config.filePath(metricsName + ".json")
 	f, err := os.Create(name)
 	if err != nil {
@@ -60,10 +60,10 @@ func (m *Matrix) save(metricsName string) {
 	_ = level.Debug(logger).Log("msg", "target meta data success write to file ", "file", name)
 }
 
-func (m *Matrix) appendSeries(series Series) {
+func (m *matrix) appendSeries(series series) {
 	if series.forJobs(config.Jobs) {
 		if m.containsSeries(series) {
-			for i, _ := range *m {
+			for i := range *m {
 				if (*m)[i].sameMetrics(series) {
 					(*m)[i].Points = append((*m)[i].Points, series.Points...)
 				}

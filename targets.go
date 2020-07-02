@@ -8,7 +8,7 @@ import (
 	//"github.com/prometheus/common"
 )
 
-type TargetData struct {
+type targetData struct {
 	Target prometheus.Labels `json:"target,omitempty"`
 	Metric string            `json:"metric,omitempty"`
 	Type   string            `json:"type,omitempty"`
@@ -16,18 +16,18 @@ type TargetData struct {
 	Unit   string            `json:"unit,omitempty"`
 }
 
-type TargetList []TargetData
+type targetList []targetData
 
-func UnmarshalTargets(data []byte) (*TargetList, error) {
-	var t TargetList
+func unmarshalTargets(data []byte) (*targetList, error) {
+	var t targetList
 	if err := json.Unmarshal(data, &t); err != nil {
 		return nil, err
 	}
 	return &t, nil
 }
 
-func readTargetsList() (*TargetList, error) {
-	read, err := GetApiData("targets/metadata")
+func readTargetsList() (*targetList, error) {
+	read, err := getAPIData("targets/metadata")
 	if err != nil {
 		_ = level.Error(logger).Log("msg", "problem collect targets details")
 		return nil, err
@@ -37,20 +37,20 @@ func readTargetsList() (*TargetList, error) {
 		return nil, errors.New(read.Error)
 	}
 	s := string(*read.Data)
-	t, err := UnmarshalTargets([]byte(s))
+	t, err := unmarshalTargets([]byte(s))
 	return t, err
 }
 
-func (t *TargetList) cleanAndFilterJobs(jobNames []string) *MetricsMetaList {
-	m := MetricsMetaList{}
-	if jobNames == nil || len(jobNames) == 0 {
-		return &m
-	}
-	for i := len(*t) - 1; i >= 0; i-- {
-		if !containsString(jobNames, (*t)[i].Target["job"]) {
-			*t = append((*t)[:i], (*t)[i+1:]...)
-		}
-	}
-
-	return &m
-}
+//func (t *targetList) cleanAndFilterJobs(jobNames []string) *metricsMetaList {
+//	m := metricsMetaList{}
+//	if  len(jobNames) == 0 {
+//		return &m
+//	}
+//	for i := len(*t) - 1; i >= 0; i-- {
+//		if !containsString(jobNames, (*t)[i].Target["job"]) {
+//			*t = append((*t)[:i], (*t)[i+1:]...)
+//		}
+//	}
+//
+//	return &m
+//}

@@ -1,4 +1,4 @@
-module github.com/pokornyIt/prometehus_data_dump
+module github.com/pokornyIt/prometheus_data_dump
 
 go 1.14
 

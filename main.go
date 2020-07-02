@@ -24,18 +24,17 @@ const (
 )
 
 var (
-	logger        log.Logger // logger
-	Version       string
-	Revision      string
-	Branch        string
-	BuildUser     string
-	BuildDate     string
+	logger        log.Logger                              // logger
+	Version       string                                  // project version
+	Revision      string                                  // project revision
+	Branch        string                                  // project branch name
+	BuildUser     string                                  // build user
+	BuildDate     string                                  // build data
 	src           = rand.NewSource(time.Now().UnixNano()) // randomize base string
 	maxRandomSize = 10                                    // required size of random string
-	//metricsMeta   *MetricsMetaList
 )
 
-func RandomString() string {
+func randomString() string {
 	sb := strings.Builder{}
 	sb.Grow(maxRandomSize)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
@@ -63,9 +62,9 @@ func containsString(slice []string, item string) bool {
 	return ok
 }
 
-func saveMetaData() *MetricsMetaList {
+func saveMetaData() *metricsMetaList {
 	l, _ := readTargetsList()
-	metricsMeta := NewMetricsMetaList(*l)
+	metricsMeta := newMetricsMetaList(*l)
 	metricsMeta.onlyForJobs(config.Jobs)
 	metricsMeta.saveList()
 
@@ -73,7 +72,7 @@ func saveMetaData() *MetricsMetaList {
 	return metricsMeta
 }
 
-func saveData(metricsMeta *MetricsMetaList) {
+func saveData(metricsMeta *metricsMetaList) {
 	var wg sync.WaitGroup
 	_ = level.Debug(logger).Log("msg", fmt.Sprintf("start %d goroutines for collect metrics for %d days ", len(*metricsMeta), config.Days))
 	for _, metrics := range *metricsMeta {
@@ -87,7 +86,7 @@ func saveData(metricsMeta *MetricsMetaList) {
 
 func collectOneMetrics(wg *sync.WaitGroup, metricName string) {
 	defer wg.Done()
-	m := Matrix{}
+	m := matrix{}
 	for i := 0; i < config.Days; i++ {
 		c, err := getRangeDay(metricName+"{}", i+1)
 		if err != nil {
@@ -121,7 +120,7 @@ func main() {
 	logger = promlog.New(promlogConfig)
 	_ = level.Info(logger).Log("msg", "Starting prometheus data export ", "version", version.Info())
 
-	err := config.LoadFile(*configFile)
+	err := config.loadFile(*configFile)
 	if *showConfig {
 		_ = level.Info(logger).Log("msg", "show only configuration ane exit")
 		fmt.Print(config.print())

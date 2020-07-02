@@ -6,9 +6,9 @@ import (
 	"os"
 )
 
-const MetricsMetaFileName = "metrics-meta.json"
+const metricsMetaFileName = "metrics-meta.json"
 
-type MetricMeta struct {
+type metricMeta struct {
 	Job    string `json:"job,omitempty"`
 	Metric string `json:"metric,omitempty"`
 	Type   string `json:"type,omitempty"`
@@ -16,10 +16,10 @@ type MetricMeta struct {
 	Unit   string `json:"unit,omitempty"`
 }
 
-type MetricsMetaList []MetricMeta
+type metricsMetaList []metricMeta
 
-func NewMetrics(target TargetData) *MetricMeta {
-	return &MetricMeta{
+func newMetrics(target targetData) *metricMeta {
+	return &metricMeta{
 		Job:    target.Target["job"],
 		Metric: target.Metric,
 		Type:   target.Type,
@@ -28,25 +28,25 @@ func NewMetrics(target TargetData) *MetricMeta {
 	}
 }
 
-func (m *MetricMeta) isSame(meta MetricMeta) bool {
-	return m.Job == meta.Job && m.Metric == meta.Metric
-}
+//func (m *metricMeta) isSame(meta metricMeta) bool {
+//	return m.Job == meta.Job && m.Metric == meta.Metric
+//}
 
-func (m *MetricMeta) isSameTarget(target TargetData) bool {
+func (m *metricMeta) isSameTarget(target targetData) bool {
 	return m.Job == target.Target["job"] && m.Metric == target.Metric
 }
 
-func NewMetricsMetaList(t TargetList) *MetricsMetaList {
-	m := MetricsMetaList{}
+func newMetricsMetaList(t targetList) *metricsMetaList {
+	m := metricsMetaList{}
 	for _, targetData := range t {
 		if !m.exitInList(targetData) {
-			m = append(m, *NewMetrics(targetData))
+			m = append(m, *newMetrics(targetData))
 		}
 	}
 	return &m
 }
 
-func (m *MetricsMetaList) exitInList(data TargetData) bool {
+func (m *metricsMetaList) exitInList(data targetData) bool {
 	for i := 0; i < len(*m); i++ {
 		if (*m)[i].isSameTarget(data) {
 			return true
@@ -55,8 +55,8 @@ func (m *MetricsMetaList) exitInList(data TargetData) bool {
 	return false
 }
 
-func (m *MetricsMetaList) onlyForJobs(jobNames []string) {
-	if jobNames == nil || len(jobNames) == 0 {
+func (m *metricsMetaList) onlyForJobs(jobNames []string) {
+	if len(jobNames) == 0 {
 		return
 	}
 	for i := len(*m) - 1; i >= 0; i-- {
@@ -66,8 +66,8 @@ func (m *MetricsMetaList) onlyForJobs(jobNames []string) {
 	}
 }
 
-func (m *MetricsMetaList) saveList() {
-	name := config.filePath(MetricsMetaFileName)
+func (m *metricsMetaList) saveList() {
+	name := config.filePath(metricsMetaFileName)
 	f, err := os.Create(name)
 	if err != nil {
 		_ = level.Error(logger).Log("msg", "problem create meta data file ", "file", name, "error", err)

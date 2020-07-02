@@ -31,7 +31,7 @@ func TestPoint_UnmarshalJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Point{
+			p := &point{
 				T: tt.fields.T,
 				V: tt.fields.V,
 			}

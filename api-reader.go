@@ -9,31 +9,31 @@ import (
 	"time"
 )
 
-const UriFormat = "http://%s:9090/api/v1/%s"
+const uriFormat = "http://%s:9090/api/v1/%s"
 
-func getFormUri(uri string) (data []byte, err error) {
-	uri = fmt.Sprintf(UriFormat, config.Server, uri)
+func getFormURI(uri string) (data []byte, err error) {
+	uri = fmt.Sprintf(uriFormat, config.Server, uri)
 	_ = level.Debug(logger).Log("msg", "read data from server ", "uri", uri)
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		_ = level.Error(logger).Log("msg", "problem create request for uri "+uri, "error", err)
 		return nil, err
 	}
-	return finishApiRequest(req)
+	return finishAPIRequest(req)
 }
 
 //func postFromUri(uri string, body []byte) (data []byte, err error) {
-//	uri = fmt.Sprintf(UriFormat, config.Server, uri)
+//	uri = fmt.Sprintf(uriFormat, config.Server, uri)
 //	_ = level.Info(logger).Log("msg", "post and read data from server ", "uri", uri)
 //	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(body))
 //	if err != nil {
 //		_ = level.Error(logger).Log("msg", "problem create request for uri "+uri, "error", err)
 //		return nil, err
 //	}
-//	return finishApiRequest(req)
+//	return finishAPIRequest(req)
 //}
 
-func finishApiRequest(req *http.Request) (data []byte, err error) {
+func finishAPIRequest(req *http.Request) (data []byte, err error) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}

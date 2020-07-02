@@ -4,10 +4,6 @@ on:
   release:
     types: [created]
 
-#env:
-#  CMD_PATH: ./cmd/vt2geojson
-
-
 jobs:
   releases-matrix:
     name: Release Matrix
@@ -17,7 +13,7 @@ jobs:
         goos: [linux, windows]
         goarch: [amd64, arm64]
         exclude:
-          # windows/arm64 and darwin/arm64 seems useless
+          # windows/arm64 seems useless
           - goarch: arm64
             goos: windows
     steps:
@@ -36,6 +32,5 @@ jobs:
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
           pre_command: go get -v ./...
-          #          project_path: "${{ env.CMD_PATH }}"
           build_flags: -v
           ldflags: -X "main.Version=${{ env.APP_VERSION }}" -X "main.BuildDate=${{ env.BUILD_TIME }}" -X main.Branch=${{ github.sha }} -X main.Revision=${{ github.ref }}
