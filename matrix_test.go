@@ -13,13 +13,13 @@ func TestMatrix_UnmarshalJSON(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		m       Matrix
+		m       matrix
 		args    args
 		wantErr bool
 	}{
-		{"valid data", Matrix{}, args{[]byte(testMatrixSuccess)}, false},
-		{"empty", Matrix{}, args{[]byte("")}, true},
-		{"empty array", Matrix{}, args{[]byte("[{}]")}, false},
+		{"valid data", matrix{}, args{[]byte(testMatrixSuccess)}, false},
+		{"empty", matrix{}, args{[]byte("")}, true},
+		{"empty array", matrix{}, args{[]byte("[{}]")}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -32,23 +32,23 @@ func TestMatrix_UnmarshalJSON(t *testing.T) {
 
 func TestMatrix_appendSeries(t *testing.T) {
 	type args struct {
-		series Series
+		series series
 	}
 	tests := []struct {
 		name      string
-		m         Matrix
+		m         matrix
 		args      args
 		newSeries bool
 	}{
-		{"contains", Matrix{
-			Series{prometheus.Labels{"key": "data", "job": "test"}, nil},
-			Series{prometheus.Labels{"job": "not there"}, nil}}, args{
-			Series{prometheus.Labels{"key": "data", "job": "test"}, nil},
+		{"contains", matrix{
+			series{prometheus.Labels{"key": "data", "job": "test"}, nil},
+			series{prometheus.Labels{"job": "not there"}, nil}}, args{
+			series{prometheus.Labels{"key": "data", "job": "test"}, nil},
 		}, false},
-		{"not contains", Matrix{
-			Series{prometheus.Labels{"key": "data", "job": "test"}, nil},
-			Series{prometheus.Labels{"key": "data", "job": "not there"}, nil}}, args{
-			Series{prometheus.Labels{"key": "data", "job": "missing"}, nil},
+		{"not contains", matrix{
+			series{prometheus.Labels{"key": "data", "job": "test"}, nil},
+			series{prometheus.Labels{"key": "data", "job": "not there"}, nil}}, args{
+			series{prometheus.Labels{"key": "data", "job": "missing"}, nil},
 		}, true},
 	}
 	for _, tt := range tests {
@@ -70,24 +70,24 @@ func TestMatrix_appendSeries(t *testing.T) {
 
 func TestMatrix_containsSeries(t *testing.T) {
 	type args struct {
-		series Series
+		series series
 	}
 	tests := []struct {
 		name string
-		m    Matrix
+		m    matrix
 		args args
 		want bool
 	}{
-		{"empty array", Matrix{}, args{}, false},
-		{"contains", Matrix{
-			Series{prometheus.Labels{"key": "data", "job": "test"}, nil},
-			Series{prometheus.Labels{"job": "not there"}, nil}}, args{
-			Series{prometheus.Labels{"key": "data", "job": "test"}, nil},
+		{"empty array", matrix{}, args{}, false},
+		{"contains", matrix{
+			series{prometheus.Labels{"key": "data", "job": "test"}, nil},
+			series{prometheus.Labels{"job": "not there"}, nil}}, args{
+			series{prometheus.Labels{"key": "data", "job": "test"}, nil},
 		}, true},
-		{"not contains", Matrix{
-			Series{prometheus.Labels{"key": "data", "job": "test"}, nil},
-			Series{prometheus.Labels{"key": "data", "job": "not there"}, nil}}, args{
-			Series{prometheus.Labels{"key": "data", "job": "missing"}, nil},
+		{"not contains", matrix{
+			series{prometheus.Labels{"key": "data", "job": "test"}, nil},
+			series{prometheus.Labels{"key": "data", "job": "not there"}, nil}}, args{
+			series{prometheus.Labels{"key": "data", "job": "missing"}, nil},
 		}, false},
 	}
 	for _, tt := range tests {

@@ -11,19 +11,20 @@ import (
 
 var pointRex = regexp.MustCompile(`\[\s*(\d+\.?\d*)\s*\,\s*\"([^\"]+)\"\s*\]`)
 
-// Point represents a single data point for a given timestamp.
-type Point struct {
+// point represents a single data point for a given timestamp.
+type point struct {
 	T model.Time
 	V float64
 	//U string
 }
 
-func (p Point) String() string {
+func (p point) String() string {
 	v := strconv.FormatFloat(p.V, 'f', -1, 64)
 	return fmt.Sprintf("%v @[%v]", v, p.T)
 }
 
-func (p *Point) UnmarshalJSON(data []byte) error {
+// Implement json Unmarshaler interface
+func (p *point) UnmarshalJSON(data []byte) error {
 	s := string(data)
 	match := pointRex.FindStringSubmatch(s)
 	if len(match) < 3 {

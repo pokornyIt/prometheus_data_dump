@@ -8,7 +8,7 @@ import (
 func TestSeries_forJob(t *testing.T) {
 	type fields struct {
 		Metric prometheus.Labels
-		Points []Point
+		Points []point
 	}
 	type args struct {
 		jobName string
@@ -26,7 +26,7 @@ func TestSeries_forJob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := Series{
+			s := series{
 				Metric: tt.fields.Metric,
 				Points: tt.fields.Points,
 			}
@@ -40,7 +40,7 @@ func TestSeries_forJob(t *testing.T) {
 func TestSeries_forJobs(t *testing.T) {
 	type fields struct {
 		Metric prometheus.Labels
-		Points []Point
+		Points []point
 	}
 	type args struct {
 		jobs []string
@@ -56,7 +56,7 @@ func TestSeries_forJobs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := Series{
+			s := series{
 				Metric: tt.fields.Metric,
 				Points: tt.fields.Points,
 			}
@@ -70,10 +70,10 @@ func TestSeries_forJobs(t *testing.T) {
 func TestSeries_sameMetrics(t *testing.T) {
 	type fields struct {
 		Metric prometheus.Labels
-		Points []Point
+		Points []point
 	}
 	type args struct {
-		series Series
+		series series
 	}
 	tests := []struct {
 		name   string
@@ -82,27 +82,27 @@ func TestSeries_sameMetrics(t *testing.T) {
 		want   bool
 	}{
 		{"same metrics", fields{Metric: prometheus.Labels{"key": "any", "job": "test_job"}, Points: nil},
-			args{Series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, true},
+			args{series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, true},
 		{"different value", fields{Metric: prometheus.Labels{"key": "any", "job": "test_job_no"}, Points: nil},
-			args{Series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
+			args{series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
 		{"different key", fields{Metric: prometheus.Labels{"key_diff": "any", "job": "test_job"}, Points: nil},
-			args{Series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
+			args{series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
 		{"empty source", fields{Metric: prometheus.Labels{"key": "any", "job": "test_job"}, Points: nil},
-			args{Series{Metric: prometheus.Labels{}}}, false},
+			args{series{Metric: prometheus.Labels{}}}, false},
 		{"empty test", fields{Metric: prometheus.Labels{}, Points: nil},
-			args{Series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
+			args{series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
 		{"empty both", fields{Metric: prometheus.Labels{}, Points: nil},
-			args{Series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
+			args{series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
 		{"add test", fields{Metric: prometheus.Labels{"key": "any", "job": "test_job", "add": "add"}, Points: nil},
-			args{Series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
+			args{series{Metric: prometheus.Labels{"key": "any", "job": "test_job"}}}, false},
 		{"add source", fields{Metric: prometheus.Labels{"key": "any", "job": "test_job"}, Points: nil},
-			args{Series{Metric: prometheus.Labels{"key": "any", "job": "test_job", "add": "add"}}}, false},
+			args{series{Metric: prometheus.Labels{"key": "any", "job": "test_job", "add": "add"}}}, false},
 		{"add source", fields{Metric: prometheus.Labels{"key": "any", "job": "test_job"}, Points: nil},
-			args{Series{Metric: prometheus.Labels{"key": "any", "job": "test_job", "add": "add"}}}, false},
+			args{series{Metric: prometheus.Labels{"key": "any", "job": "test_job", "add": "add"}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := Series{
+			s := series{
 				Metric: tt.fields.Metric,
 				Points: tt.fields.Points,
 			}

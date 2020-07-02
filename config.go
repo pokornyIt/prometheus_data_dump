@@ -15,7 +15,7 @@ import (
 
 const connectionTimeout = 10
 
-type Config struct {
+type configuration struct {
 	Server string   `yaml:"server" json:"server"` // FQDN or IP address of server
 	Path   string   `yaml:"path" json:"path"`     // path to store directory
 	Days   int      `yaml:"days" json:"days"`
@@ -28,7 +28,7 @@ var (
 	configFile    = kingpin.Flag("config.file", "Configuration file default is \"cfg.yml\".").PlaceHolder("cfg.yml").Default("cfg.yml").String()
 	directoryData = kingpin.Flag("path", "Path where store export json data").PlaceHolder("path").Default("./dump").String()
 	server        = kingpin.Flag("server", "Prometheus server FQDN or IP address").PlaceHolder("server").Default("").String()
-	config        = &Config{
+	config        = &configuration{
 		Server: "",
 		Path:   "./dump",
 		Days:   1,
@@ -60,7 +60,7 @@ func dirAccessible(directory string) bool {
 		dir = directory
 	}
 	for ok := true; ok; ok = fileExists(file) {
-		file = filepath.Join(dir, RandomString()+".tmp")
+		file = filepath.Join(dir, randomString()+".tmp")
 	}
 	f, err := os.Create(file)
 	if err == nil {
@@ -74,7 +74,7 @@ func dirAccessible(directory string) bool {
 	return err == nil
 }
 
-func (c *Config) overWriteFromLine() {
+func (c *configuration) overWriteFromLine() {
 	if len(*server) > 0 {
 		c.Server = *server
 	}
@@ -83,7 +83,7 @@ func (c *Config) overWriteFromLine() {
 	}
 }
 
-func (c *Config) validate() error {
+func (c *configuration) validate() error {
 	match, err := regexp.MatchString("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$", c.Server)
 	if !match || err != nil {
 		match, err = regexp.MatchString("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$", c.Server)
@@ -113,7 +113,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-func (c *Config) LoadFile(filename string) error {
+func (c *configuration) loadFile(filename string) error {
 	if fileExists(filename) {
 		content, err := ioutil.ReadFile(filename)
 		if err != nil {
@@ -131,7 +131,7 @@ func (c *Config) LoadFile(filename string) error {
 	return c.validate()
 }
 
-func (c *Config) print() string {
+func (c *configuration) print() string {
 	a := fmt.Sprintf("\r\n%s\r\nActual configuration:\r\n", applicationName)
 	a = fmt.Sprintf("%sServer:       [%s]\r\n", a, c.Server)
 	a = fmt.Sprintf("%sData path:    [%s]\r\n", a, c.Path)
@@ -144,6 +144,6 @@ func (c *Config) print() string {
 	return a
 }
 
-func (c *Config) filePath(fileName string) string {
+func (c *configuration) filePath(fileName string) string {
 	return filepath.Join(c.Path, fileName)
 }

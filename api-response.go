@@ -7,7 +7,7 @@ import (
 
 type errorType string
 
-type ApiResponse struct {
+type apiResponse struct {
 	Status    string           `json:"status"`
 	Data      *json.RawMessage `json:"data,omitempty"`
 	ErrorType errorType        `json:"errorType,omitempty"`
@@ -16,13 +16,13 @@ type ApiResponse struct {
 	Response  []byte
 }
 
-func GetApiData(uri string) (*ApiResponse, error) {
-	data, err := getFormUri(uri)
+func getAPIData(uri string) (*apiResponse, error) {
+	data, err := getFormURI(uri)
 	if err != nil {
 		_ = level.Error(logger).Log("msg", "problem collect targets details")
 		return nil, err
 	}
-	var api ApiResponse
+	var api apiResponse
 	if err := json.Unmarshal(data, &api); err != nil {
 		return nil, err
 	}
@@ -31,6 +31,6 @@ func GetApiData(uri string) (*ApiResponse, error) {
 	return &api, nil
 }
 
-func (a *ApiResponse) statusSuccess() bool {
+func (a *apiResponse) statusSuccess() bool {
 	return a.Status == "success"
 }

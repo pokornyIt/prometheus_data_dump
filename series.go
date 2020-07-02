@@ -6,12 +6,12 @@ import (
 	"strings"
 )
 
-type Series struct {
+type series struct {
 	Metric prometheus.Labels `json:"metric"`
-	Points []Point           `json:"values"`
+	Points []point           `json:"values"`
 }
 
-func (s Series) String() string {
+func (s series) String() string {
 	vals := make([]string, len(s.Points))
 	for i, v := range s.Points {
 		vals[i] = v.String()
@@ -19,7 +19,7 @@ func (s Series) String() string {
 	return fmt.Sprintf("%s =>\n%s", s.Metric, strings.Join(vals, "\n"))
 }
 
-func (s Series) sameMetrics(series Series) bool {
+func (s series) sameMetrics(series series) bool {
 	if len(s.Metric) != len(series.Metric) {
 		return false
 	}
@@ -31,14 +31,14 @@ func (s Series) sameMetrics(series Series) bool {
 	return true
 }
 
-func (s Series) forJob(jobName string) bool {
+func (s series) forJob(jobName string) bool {
 	if len(jobName) == 0 {
 		return false
 	}
 	return s.Metric["job"] == jobName
 }
 
-func (s Series) forJobs(jobs []string) bool {
+func (s series) forJobs(jobs []string) bool {
 	if len(jobs) == 0 {
 		return true
 	}
