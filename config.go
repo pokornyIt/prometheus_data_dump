@@ -10,17 +10,21 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 )
 
-const connectionTimeout = 10
+//const connectionTimeout = 10
 
-type Config struct {
-	Server string   `yaml:"server" json:"server"` // FQDN or IP address of server
-	Path   string   `yaml:"path" json:"path"`     // path to store directory
-	Days   int      `yaml:"days" json:"days"`
-	Jobs   []string `yaml:"jobs" json:"jobs"`
-	Step   int      `yaml:"step" json:"step"`
+type Configuration struct {
+	Server  string    `yaml:"server" json:"server"`   // FQDN or IP address of server
+	Path    string    `yaml:"path" json:"path"`       // path to store directory
+	Days    int       `yaml:"days" json:"days"`       // days back to dump
+	Sources []Sources `yaml:"sources" json:"sources"` // list of collected sources
+	Step    int       `yaml:"step" json:"step"`       //step data dump 5 - 3600 sec
+}
+
+type Sources struct {
+	Instance  string `yaml:"instance" json:"instance"`   // instance names uses wildcards .+ mean all
+	IncludeGo bool   `yaml:"includeGo" json:"includeGo"` // exclude standard go_ metrics (__name__)
 }
 
 var (
@@ -28,12 +32,12 @@ var (
 	configFile    = kingpin.Flag("config.file", "Configuration file default is \"cfg.yml\".").PlaceHolder("cfg.yml").Default("cfg.yml").String()
 	directoryData = kingpin.Flag("path", "Path where store export json data").PlaceHolder("path").Default("./dump").String()
 	server        = kingpin.Flag("server", "Prometheus server FQDN or IP address").PlaceHolder("server").Default("").String()
-	config        = &Config{
-		Server: "",
-		Path:   "./dump",
-		Days:   1,
-		Jobs:   []string{},
-		Step:   10,
+	config        = &Configuration{
+		Server:  "",
+		Path:    "./dump",
+		Days:    1,
+		Sources: []Sources{},
+		Step:    10,
 	}
 )
 
@@ -74,7 +78,7 @@ func dirAccessible(directory string) bool {
 	return err == nil
 }
 
-func (c *Config) overWriteFromLine() {
+func (c *Configuration) overWriteFromLine() {
 	if len(*server) > 0 {
 		c.Server = *server
 	}
@@ -83,7 +87,7 @@ func (c *Config) overWriteFromLine() {
 	}
 }
 
-func (c *Config) validate() error {
+func (c *Configuration) validate() error {
 	match, err := regexp.MatchString("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$", c.Server)
 	if !match || err != nil {
 		match, err = regexp.MatchString("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$", c.Server)
@@ -110,10 +114,14 @@ func (c *Config) validate() error {
 	if !dirAccessible(c.Path) {
 		return errors.New("path not accessible for write")
 	}
+
+	if len(c.Sources) < 1 {
+		return errors.New("not define any sources")
+	}
 	return nil
 }
 
-func (c *Config) LoadFile(filename string) error {
+func (c *Configuration) LoadFile(filename string) error {
 	if fileExists(filename) {
 		content, err := ioutil.ReadFile(filename)
 		if err != nil {
@@ -131,19 +139,27 @@ func (c *Config) LoadFile(filename string) error {
 	return c.validate()
 }
 
-func (c *Config) print() string {
+func (c *Configuration) print() string {
 	a := fmt.Sprintf("\r\n%s\r\nActual configuration:\r\n", applicationName)
 	a = fmt.Sprintf("%sServer:       [%s]\r\n", a, c.Server)
 	a = fmt.Sprintf("%sData path:    [%s]\r\n", a, c.Path)
 	a = fmt.Sprintf("%sDays back:    [%d]\r\n", a, c.Days)
-	if len(c.Jobs) == 0 {
-		a = fmt.Sprintf("%sTargets:      [--all--]\r\n", a)
+	if len(c.Sources) == 0 {
+		a = fmt.Sprintf("%sSources:      [N/A]\r\n", a)
 	} else {
-		a = fmt.Sprintf("%sJobs:         [%s]\r\n", a, strings.Join(c.Jobs, ", "))
+		a = fmt.Sprintf("%sSources:\r\n", a)
+		for _, source := range c.Sources {
+			a = fmt.Sprintf("%s              [%s]\r\n", a, source.print())
+		}
 	}
 	return a
 }
 
-func (c *Config) filePath(fileName string) string {
-	return filepath.Join(c.Path, fileName)
+func (c *Configuration) serverAddress() string {
+	return fmt.Sprintf("http://%s:9090", c.Server)
+}
+
+func (s *Sources) print() string {
+	a := fmt.Sprintf("%s (%t)", s.Instance, s.IncludeGo)
+	return a
 }

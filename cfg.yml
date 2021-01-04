@@ -1,6 +1,7 @@
-server: perftcl2.perflab.zoomint.com
+server: prometehus.server
 path: ./dump
 days: 2
-jobs:
-  - node_exporter_zqm
-  - cucm_monitor
+step: 10
+sources:
+  - instance: 'localhost.+'
+    excludeGo: false

@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"math/rand"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -31,7 +33,8 @@ var (
 	BuildUser     string
 	BuildDate     string
 	src           = rand.NewSource(time.Now().UnixNano()) // randomize base string
-	maxRandomSize = 10                                    // required size of random string
+	timeStart     time.Time
+	maxRandomSize = 10 // required size of random string
 	//metricsMeta   *MetricsMetaList
 )
 
@@ -53,60 +56,6 @@ func RandomString() string {
 	return sb.String()
 }
 
-func containsString(slice []string, item string) bool {
-	set := make(map[string]struct{}, len(slice))
-	for _, s := range slice {
-		set[s] = struct{}{}
-	}
-
-	_, ok := set[item]
-	return ok
-}
-
-func saveMetaData() *MetricsMetaList {
-	l, _ := readTargetsList()
-	metricsMeta := NewMetricsMetaList(*l)
-	metricsMeta.onlyForJobs(config.Jobs)
-	metricsMeta.saveList()
-
-	_ = level.Info(logger).Log("msg", fmt.Sprintf("metrics in meta data %d", len(*metricsMeta)))
-	return metricsMeta
-}
-
-func saveData(metricsMeta *MetricsMetaList) {
-	var wg sync.WaitGroup
-	_ = level.Debug(logger).Log("msg", fmt.Sprintf("start %d goroutines for collect metrics for %d days ", len(*metricsMeta), config.Days))
-	for _, metrics := range *metricsMeta {
-		wg.Add(1)
-		go collectOneMetrics(&wg, metrics.Metric)
-	}
-	_ = level.Debug(logger).Log("msg", "all goroutines started")
-	wg.Wait()
-	_ = level.Debug(logger).Log("msg", "data store finish")
-}
-
-func collectOneMetrics(wg *sync.WaitGroup, metricName string) {
-	defer wg.Done()
-	m := Matrix{}
-	for i := 0; i < config.Days; i++ {
-		c, err := getRangeDay(metricName+"{}", i+1)
-		if err != nil {
-			continue
-		}
-		l := len(m)
-		for _, series := range *c {
-			m.appendSeries(series)
-		}
-		_ = level.Debug(logger).Log("msg", fmt.Sprintf("in metrics %s add new %d series", metricName, len(m)-l))
-	}
-	if len(m) == 0 {
-		_ = level.Error(logger).Log("msg", "for metrics "+metricName+" not any data")
-	} else {
-		m.save(metricName)
-		_ = level.Debug(logger).Log("msg", "save data for metrics "+metricName)
-	}
-}
-
 func main() {
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
@@ -120,11 +69,17 @@ func main() {
 	kingpin.Parse()
 	logger = promlog.New(promlogConfig)
 	_ = level.Info(logger).Log("msg", "Starting prometheus data export ", "version", version.Info())
+	timeStart = time.Now().UTC()
 
 	err := config.LoadFile(*configFile)
 	if *showConfig {
 		_ = level.Info(logger).Log("msg", "show only configuration ane exit")
-		fmt.Print(config.print())
+
+		if err != nil {
+			fmt.Print(config.print())
+		} else {
+			fmt.Printf("%s%s", config.print(), printTimeRanges(generateRangeTable(initRange())))
+		}
 		os.Exit(0)
 	}
 	if err != nil {
@@ -132,6 +87,92 @@ func main() {
 		fmt.Printf("Program did not start due to configuration error! \r\n\tError: %s", err)
 		os.Exit(1)
 	}
-	m := saveMetaData()
-	saveData(m)
+
+	// start process data
+	_ = level.Info(logger).Log("msg", "start collect necessary data")
+	v1Api, err := prepareApi(config)
+	if err != nil {
+		_ = level.Info(logger).Log("msg", "program exit, because there is problem with connect Prometheus server")
+		os.Exit(2)
+	}
+
+	timeRangeSplit := generateRangeTable(initRange())
+	_ = level.Info(logger).Log("msg", fmt.Sprintf("requried time split to %d time ranges", len(timeRangeSplit)))
+
+	// process for all data
+	for _, source := range config.Sources {
+		processOneSources(v1Api, source, timeRangeSplit)
+	}
+}
+
+func processOneSources(api v1.API, sources Sources, ranges []v1.Range) {
+	labels, err := collectSeriesList(api, sources, config.Days)
+	if err != nil {
+		return
+	}
+
+	organized := splitToSeriesNameAndInstance(labels)
+
+	storage := NewStorage(config.Path, sources)
+	_ = storage.prepareDirectory()
+	storage.saveOrganized(organized)
+
+	channel := make(chan OrganizedSeries, len(organized))
+
+	// fill data
+	for _, series := range organized {
+		channel <- series
+	}
+	_ = level.Info(logger).Log("msg", "prepared GO coroutines channel data")
+
+	var wg sync.WaitGroup
+	cpu := runtime.NumCPU()
+	if cpu > 1 {
+		cpu--
+	}
+	start := time.Now()
+	for i := 0; i < cpu; i++ {
+		wg.Add(1)
+		go processOneInstance(&wg, channel, api, storage, ranges, i)
+	}
+	_ = level.Info(logger).Log("msg", fmt.Sprintf("wait to finish all %d routines", cpu))
+	wg.Wait()
+	_ = level.Info(logger).Log("msg", fmt.Sprintf("all coroutines finish %s", time.Since(start).String()))
+}
+
+func processOneInstance(wg *sync.WaitGroup, channel chan OrganizedSeries, api v1.API, storage *Storage, ranges []v1.Range, cpu int) {
+	defer wg.Done()
+	for {
+		select {
+		case series := <-channel:
+			_ = level.Debug(logger).Log("msg", fmt.Sprintf("process data for coroutine %d", cpu), "series", series.Name)
+			var saveAll []SaveAllData
+			for _, label := range series.Set {
+				var saveData []SaveData
+				loops := 0
+				loopsErr := 0
+				loopsEmpty := 0
+				for _, timeRange := range ranges {
+					loops++
+					data, err := readQueryRange(api, label, timeRange)
+					if err != nil {
+						loopsErr++
+						continue
+					}
+					d := convertApiData(data)
+					if len(d) > 0 {
+						saveData = append(saveData, d...)
+					} else {
+						loopsEmpty++
+					}
+				}
+				saveAll = append(saveAll, SaveAllData{Collection: label, Data: saveData})
+			}
+			storage.saveAllData(saveAll, cleanFilePathName(series.Name)+".json")
+			break
+		case <-time.Tick(1 * time.Second):
+			_ = level.Debug(logger).Log("msg", fmt.Sprintf("funish coroutine %d", cpu))
+			return
+		}
+	}
 }

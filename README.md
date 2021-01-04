@@ -26,16 +26,18 @@ server: prometehus.server
 path: ./dump
 days: 2
 step: 10
-jobs:
-  - node_exporter_zqm
-  - cucm_monitor
+sources:
+  - instance: 'localhost.+'
+    includeGo: false
 ``` 
 
 - **server** - FQDN or IP address of prometheus server
 - **path** - Path for store export data
 - **days** - Number of day to exports (1-60)
 - **step** - Step for time slice in seconds (5 - 3600), default 10
-- **jobs** - limit data only for target jobs. If omitted or empty mean export all jobs
+- **sources** - Array for limit data to only for instance list name.
+  - **instance** - Instance name for what oyu can export all data
+  - **excludeGo** - Include metrics name starts with 'go_'. Default mean exclude this metrics
 
 ## Configuration line parameters
 - **--config.show** - show actual configuration and exit
