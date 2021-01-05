@@ -2,19 +2,21 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/go-kit/kit/log/level"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
 // One Storage instance for one Source path
 type Storage struct {
-	MainPath   string `yaml:"mainPath" json:"mainPath"`
-	TimePath   string `yaml:"timePath" json:"timePath"`
+	MainPath   string `yaml:"-" json:"-"`
+	TimePath   string `yaml:"-" json:"-"`
 	SourcePath string `yaml:"sourcePath" json:"sourcePath"`
-	Prepared   bool   `yaml:"prepared" json:"prepared"`
+	Prepared   bool   `yaml:"-" json:"-"`
 	Accessible bool   `yaml:"accessible" json:"accessible"`
 }
 
@@ -50,7 +52,7 @@ func (s *Storage) prepareDirectory() error {
 
 func (s *Storage) saveOrganized(services OrganizedServices) {
 	data, err := json.Marshal(services)
-	f := "organize-load.json"
+	f := fmt.Sprintf("organize-%s.json", filepath.Base(s.SourcePath))
 	if err != nil {
 		_ = level.Error(logger).Log("msg", "problem convert data to JSON file", "error", err, "file", f)
 		return
@@ -81,42 +83,21 @@ func (s *Storage) saveJson(data []byte, fullFileName string) {
 	}
 }
 
-var badCharacters = []string{
-	"../",
-	"<!--",
-	"-->",
-	"<",
-	">",
-	"'",
-	"\"",
-	"&",
-	"$",
-	"#",
-	"{", "}", "[", "]", "=", ".+",
-	";", "?", "%20", "%22", "+",
-	"%3c",   // <
-	"%253c", // <
-	"%3e",   // >
-	"",      // > -- fill in with % 0 e - without spaces in between
-	"%28",   // (
-	"%29",   // )
-	"%2528", // (
-	"%26",   // &
-	"%24",   // $
-	"%3f",   // ?
-	"%3b",   // ;
-	"%3d",   // =
-}
-
 func cleanFilePathName(path string) string {
 	trimmed := strings.TrimSpace(path)
-	trimmed = strings.Replace(trimmed, " ", "", -1)
+	trimmed = strings.ToLower(trimmed)
 
-	for _, badChar := range badCharacters {
-		trimmed = strings.Replace(trimmed, badChar, "", -1)
+	resp := ""
+	re := regexp.MustCompile(`(?i)(?i)([a-z0-9 \-_~.])`)
+
+	for i := 0; i < len(trimmed); i++ {
+		if re.MatchString(string(trimmed[i])) {
+			resp = resp + string(trimmed[i])
+		}
 	}
-	if len(trimmed) < 5 {
-		trimmed = RandomString()
+
+	if len(resp) < 1 {
+		resp = RandomString()
 	}
-	return trimmed
+	return strings.TrimRight(resp, ".")
 }

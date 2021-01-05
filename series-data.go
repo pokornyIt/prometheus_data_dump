@@ -13,9 +13,10 @@ type OrganizedSeries struct {
 	Name     string           `yaml:"name" json:"name"`
 	Instance string           `yaml:"instance" json:"instance"`
 	Set      []model.LabelSet `yaml:"set" json:"set"`
+	Storage  Storage          `yaml:"storage" json:"storage"`
 }
 
-func splitToSeriesNameAndInstance(set []model.LabelSet) OrganizedServices {
+func splitToSeriesNameAndInstance(set []model.LabelSet, storage *Storage) OrganizedServices {
 	series := OrganizedServices{}
 
 	for _, labelSet := range set {
@@ -27,6 +28,7 @@ func splitToSeriesNameAndInstance(set []model.LabelSet) OrganizedServices {
 				Name:     string(labelSet[LabelName]),
 				Instance: string(labelSet[LabelInstance]),
 				Set:      []model.LabelSet{labelSet},
+				Storage:  *storage,
 			})
 		}
 	}

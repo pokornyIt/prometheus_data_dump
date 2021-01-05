@@ -43,11 +43,11 @@ func dataMatrix(data model.Value) []SaveData {
 	matrix := data.(model.Matrix)
 	var saveData []SaveData
 	if matrix.Len() < 1 {
-		_ = level.Error(logger).Log("msg", "in data model 0 expected metrics")
+		_ = level.Error(logger).Log("msg", "in returned data is zero values")
 		return nil
 	}
 	if matrix.Len() > 1 {
-		_ = level.Error(logger).Log("msg", "in data model more than one metrics")
+		_ = level.Error(logger).Log("msg", "in returned data are more than one metrics, system use only first one")
 	}
 	for _, value := range matrix[0].Values {
 

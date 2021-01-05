@@ -96,27 +96,34 @@ func main() {
 		os.Exit(2)
 	}
 
+	start := time.Now()
 	timeRangeSplit := generateRangeTable(initRange())
 	_ = level.Info(logger).Log("msg", fmt.Sprintf("requried time split to %d time ranges", len(timeRangeSplit)))
 
 	// process for all data
+	services := OrganizedServices{}
 	for _, source := range config.Sources {
-		processOneSources(v1Api, source, timeRangeSplit)
+		services = processOneSources(v1Api, source, services)
 	}
+	startReadApi(v1Api, timeRangeSplit, services)
+	_ = level.Info(logger).Log("msg", fmt.Sprintf("program successful ends after %s", time.Since(start).String()))
 }
 
-func processOneSources(api v1.API, sources Sources, ranges []v1.Range) {
+func processOneSources(api v1.API, sources Sources, services OrganizedServices) OrganizedServices {
 	labels, err := collectSeriesList(api, sources, config.Days)
 	if err != nil {
-		return
+		return services
 	}
-
-	organized := splitToSeriesNameAndInstance(labels)
 
 	storage := NewStorage(config.Path, sources)
 	_ = storage.prepareDirectory()
+	organized := splitToSeriesNameAndInstance(labels, storage)
 	storage.saveOrganized(organized)
 
+	return append(services, organized...)
+}
+
+func startReadApi(api v1.API, ranges []v1.Range, organized OrganizedServices) {
 	channel := make(chan OrganizedSeries, len(organized))
 
 	// fill data
@@ -133,14 +140,14 @@ func processOneSources(api v1.API, sources Sources, ranges []v1.Range) {
 	start := time.Now()
 	for i := 0; i < cpu; i++ {
 		wg.Add(1)
-		go processOneInstance(&wg, channel, api, storage, ranges, i)
+		go processOneInstance(&wg, channel, api, ranges, i)
 	}
 	_ = level.Info(logger).Log("msg", fmt.Sprintf("wait to finish all %d routines", cpu))
 	wg.Wait()
 	_ = level.Info(logger).Log("msg", fmt.Sprintf("all coroutines finish %s", time.Since(start).String()))
 }
 
-func processOneInstance(wg *sync.WaitGroup, channel chan OrganizedSeries, api v1.API, storage *Storage, ranges []v1.Range, cpu int) {
+func processOneInstance(wg *sync.WaitGroup, channel chan OrganizedSeries, api v1.API, ranges []v1.Range, cpu int) {
 	defer wg.Done()
 	for {
 		select {
@@ -168,7 +175,7 @@ func processOneInstance(wg *sync.WaitGroup, channel chan OrganizedSeries, api v1
 				}
 				saveAll = append(saveAll, SaveAllData{Collection: label, Data: saveData})
 			}
-			storage.saveAllData(saveAll, cleanFilePathName(series.Name)+".json")
+			series.Storage.saveAllData(saveAll, cleanFilePathName(series.Name)+".json")
 			break
 		case <-time.Tick(1 * time.Second):
 			_ = level.Debug(logger).Log("msg", fmt.Sprintf("funish coroutine %d", cpu))
