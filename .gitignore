@@ -87,9 +87,6 @@ fabric.properties
 # Dependency directories (remove the comment below to include it)
 vendor/
 /Godeps/
-.idea/boiler_exporter.iml
-.idea/misc.xml
-.idea/modules.xml
-.idea/vcs.xml
+.idea/
 dump/
-/.idea/prometheus_data_dump.iml
+data/

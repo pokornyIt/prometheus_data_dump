@@ -1,55 +1,70 @@
 package main
 
 import (
-	"crypto/tls"
+	"context"
 	"fmt"
 	"github.com/go-kit/kit/log/level"
-	"io/ioutil"
-	"net/http"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/model"
+	"regexp"
 	"time"
+
+	"github.com/prometheus/client_golang/api"
 )
 
-const uriFormat = "http://%s:9090/api/v1/%s"
-
-func getFormURI(uri string) (data []byte, err error) {
-	uri = fmt.Sprintf(uriFormat, config.Server, uri)
-	_ = level.Debug(logger).Log("msg", "read data from server ", "uri", uri)
-	req, err := http.NewRequest("GET", uri, nil)
+func prepareApi(configuration *Configuration) (v1api v1.API, err error) {
+	client, err := api.NewClient(api.Config{
+		Address: configuration.serverAddress(),
+	})
 	if err != nil {
-		_ = level.Error(logger).Log("msg", "problem create request for uri "+uri, "error", err)
+		_ = level.Error(logger).Log("msg", "problem create Prometheus API client", "error", err)
 		return nil, err
 	}
-	return finishAPIRequest(req)
+	v1api = v1.NewAPI(client)
+	return v1api, nil
 }
 
-//func postFromUri(uri string, body []byte) (data []byte, err error) {
-//	uri = fmt.Sprintf(uriFormat, config.Server, uri)
-//	_ = level.Info(logger).Log("msg", "post and read data from server ", "uri", uri)
-//	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(body))
-//	if err != nil {
-//		_ = level.Error(logger).Log("msg", "problem create request for uri "+uri, "error", err)
-//		return nil, err
-//	}
-//	return finishAPIRequest(req)
-//}
+func collectSeriesList(v1api v1.API, sources Sources, dateRange v1.Range) (labels []model.LabelSet, err error) {
+	_ = level.Debug(logger).Log("msg", fmt.Sprintf("entry collect series data for instance %s", sources.Instance))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	instances := fmt.Sprintf("{%s=~\"%s\"}", LabelInstance, sources.Instance)
 
-func finishAPIRequest(req *http.Request) (data []byte, err error) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Timeout: time.Duration(connectionTimeout) * time.Second, Transport: tr}
-	_ = level.Debug(logger).Log("msg", "try read data from uri")
-	resp, err := client.Do(req)
+	_ = level.Debug(logger).Log("msg", fmt.Sprintf("instance filter: %s", instances))
+
+	dataSet, warnings, err := v1api.Series(ctx, []string{instances}, dateRange.Start, dateRange.End)
 	if err != nil {
-		_ = level.Error(logger).Log("msg", "problem get data from server", "error", err)
+		_ = level.Error(logger).Log("msg", "problem query Prometheus API", "error", err)
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	bodies, err := ioutil.ReadAll(resp.Body)
+	if len(warnings) > 0 {
+		_ = level.Warn(logger).Log("msg", "Prometheus API return warning", "warn", err)
+	}
+	labels = []model.LabelSet{}
+	var re = regexp.MustCompile(`^go_.*`)
+	for _, set := range dataSet {
+		if !sources.IncludeGo {
+			if re.Match([]byte(set[LabelName])) {
+				continue
+			}
+		}
+		labels = append(labels, set)
+	}
+	_ = level.Debug(logger).Log("msg", fmt.Sprintf("collect %d from %d series for instance %s", len(labels), len(dataSet), sources.Instance))
+	return labels, nil
+}
+
+func readQueryRange(api v1.API, labelSet model.LabelSet, timeRange v1.Range) (data model.Value, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	data, warnings, err := api.QueryRange(ctx, labelSet.String(), timeRange)
 	if err != nil {
-		_ = level.Error(logger).Log("msg", "problem read data from response", "error", err)
+		_ = level.Error(logger).Log("msg", "problem query Prometheus API", "error", err, "queryString", labelSet.String())
 		return nil, err
 	}
-	_ = level.Debug(logger).Log("msg", fmt.Sprintf("success read %d bytes from uri", len(bodies)))
-	return bodies, nil
+	if warnings != nil {
+		_ = level.Warn(logger).Log("msg", "warning in query Prometheus API", "warn", warnings, "queryString", labelSet.String())
+	}
+
+	return data, nil
 }
