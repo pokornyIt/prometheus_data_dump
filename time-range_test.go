@@ -111,12 +111,12 @@ func Test_initRangeFromTo(t *testing.T) {
 		want v1.Range
 	}{
 		{name: "one day", args: args{
-			from: time.Date(2021, 1, 10, 10, 5, 0, 0, time.Local),
-			to:   time.Date(2021, 1, 11, 15, 0, 0, 0, time.Local),
+			from: time.Date(2021, 1, 10, 10, 5, 0, 0, time.UTC),
+			to:   time.Date(2021, 1, 11, 15, 0, 0, 0, time.UTC),
 			step: 15,
 		}, want: v1.Range{
-			Start: time.Date(2021, 1, 10, 9, 5, 0, 0, time.UTC).Add(time.Minute * -timeRangeOverSize),
-			End:   time.Date(2021, 1, 11, 14, 0, 0, 0, time.UTC).Add(time.Minute * timeRangeOverSize),
+			Start: time.Date(2021, 1, 10, 10, 5, 0, 0, time.UTC).Add(time.Minute * -timeRangeOverSize),
+			End:   time.Date(2021, 1, 11, 15, 0, 0, 0, time.UTC).Add(time.Minute * timeRangeOverSize),
 			Step:  time.Duration(15) * time.Second,
 		}},
 	}
