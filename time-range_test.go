@@ -83,8 +83,8 @@ func Test_initRange(t *testing.T) {
 		want v1.Range
 	}{
 		{name: "one day", days: 1, step: 10, want: v1.Range{
-			Start: time.Now().UTC().AddDate(0, 0, -config.Days).Truncate(time.Hour * 24),
-			End:   time.Now().UTC().Truncate(time.Minute),
+			Start: time.Now().UTC().AddDate(0, 0, -config.Days).Truncate(time.Hour * 24).Add(time.Minute * -timeRangeOverSize),
+			End:   time.Now().UTC().Truncate(time.Minute).Add(time.Minute * timeRangeOverSize),
 			Step:  time.Duration(10) * time.Second,
 		}},
 	}
@@ -115,8 +115,8 @@ func Test_initRangeFromTo(t *testing.T) {
 			to:   time.Date(2021, 1, 11, 15, 0, 0, 0, time.Local),
 			step: 15,
 		}, want: v1.Range{
-			Start: time.Date(2021, 1, 10, 00, 0, 0, 0, time.UTC),
-			End:   time.Date(2021, 1, 11, 14, 0, 0, 0, time.UTC),
+			Start: time.Date(2021, 1, 10, 9, 5, 0, 0, time.UTC).Add(time.Minute * -timeRangeOverSize),
+			End:   time.Date(2021, 1, 11, 14, 0, 0, 0, time.UTC).Add(time.Minute * timeRangeOverSize),
 			Step:  time.Duration(15) * time.Second,
 		}},
 	}
