@@ -2,6 +2,11 @@ server: prometehus.server
 path: ./dump
 days: 2
 step: 10
+# from/to date and time overwrite days back
+# from: "2021-02-14 10:00"
+# to: "2021-02-16 15:00"
+# every program run will create new subdirectory
+storeDirect: false
 sources:
   - instance: 'localhost.+'
     excludeGo: false

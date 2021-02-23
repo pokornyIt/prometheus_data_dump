@@ -4,21 +4,22 @@ on:
   push:
     tags:
       - v*
+    branches:
+      - master
   pull_request:
     branches: [ master ]
 
 jobs:
 
   build:
-    name: Test-Build
+    name: Build
     runs-on: ubuntu-latest
-
     steps:
 
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.15
+          go-version: ^1.14
         id: go
 
       - name: Check out code into the Go module directory
@@ -27,21 +28,12 @@ jobs:
       - name: Get dependencies
         run: |
           go get -v -t -d ./...
-
-      - name: Setup environment
-        run: |
-          echo APP_VERSION=$(basename ${GITHUB_REF}) >> $GITHUB_ENV
-          echo BUILD_TIME=$(date -u +"%Y%m%d-%H:%M:%S") >> $GITHUB_ENV
-          echo BUILD_USER=$(echo ${GITHUB_ACTOR}@${HOSTNAME}) >> $GITHUB_ENV
-
-      - name: Environment Printer
-        uses: managedkaos/print-env@v1.0
-
+          if [ -f Gopkg.toml ]; then
+              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure
+          fi
       - name: Build
-        run: go build -v -ldflags="-X 'main.Version=${{ env.APP_VERSION }}' -X 'main.BuildDate=${{ env.BUILD_TIME }}' -X 'main.Branch=${{ github.ref }}' -X 'main.Revision=${{ github.SHA }}' -X 'main.BuildUser=${{ env.BUILD_USER }}'" .
+        run: go build -v -ldflags="-X 'main.Version=0.0.1' -X 'main.Branch=$(git rev-parse --short HEAD)' -X 'main.BuildDate=$(date -Is)' -X main.BuildUser='$(id -u -n)'" .
 
       - name: Test
         run: go test -v .
-
-      - name: Show Data
-        run: ./cucm_performance_exporter --version
