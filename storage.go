@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-kit/kit/log/level"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // One Storage instance for one Source path
@@ -28,9 +30,13 @@ func NewStorage(path string, sources Sources) *Storage {
 		storage.MainPath = path
 	}
 	storage.TimePath = filepath.Join(storage.MainPath, timeStart.Format("20060102-1504"))
+	if config.StoreDirect {
+		storage.TimePath = storage.MainPath
+	}
 	storage.SourcePath = filepath.Join(storage.TimePath, cleanFilePathName(sources.Instance))
 	storage.Prepared = false
 	storage.Accessible = false
+	_ = level.Debug(logger).Log("msg", fmt.Sprintf("final main store path %s", storage.TimePath))
 	return &storage
 }
 
@@ -50,8 +56,15 @@ func (s *Storage) prepareDirectory() error {
 	return nil
 }
 
-func (s *Storage) saveOrganized(services OrganizedServices) {
-	data, err := json.Marshal(services)
+func (s *Storage) saveOrganized(services OrganizedServices, timeRange v1.Range) {
+	d := OrganizedForFile{
+		From: timeRange.Start.Format(time.RFC3339),
+		To:   timeRange.End.Format(time.RFC3339),
+		Step: config.Step,
+		Data: services,
+	}
+
+	data, err := json.Marshal(d)
 	f := fmt.Sprintf("organize-%s.json", filepath.Base(s.SourcePath))
 	if err != nil {
 		_ = level.Error(logger).Log("msg", "problem convert data to JSON file", "error", err, "file", f)

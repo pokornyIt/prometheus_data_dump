@@ -6,15 +6,21 @@ import (
 	"time"
 )
 
+// initRange generate Range for data based on config value Days back
 func initRange() v1.Range {
+	return initRangeFromTo(time.Now().AddDate(0, 0, -config.Days).Truncate(time.Hour*24), time.Now())
+}
+
+// initRangeFromTo generate range for limit data not for day back
+func initRangeFromTo(from time.Time, to time.Time) v1.Range {
 	return v1.Range{
-		Start: time.Now().UTC().AddDate(0, 0, -config.Days).Truncate(time.Hour * 24),
-		End:   time.Now().UTC(),
+		Start: from.UTC().Add(time.Minute * -timeRangeOverSize).Truncate(time.Minute),
+		End:   to.UTC().Add(time.Minute * timeRangeOverSize).Truncate(time.Minute),
 		Step:  time.Duration(config.Step) * time.Second,
 	}
 }
 
-// Split required range to range array
+// generateRangeTable Split required range to range array
 func generateRangeTable(r v1.Range) []v1.Range {
 	var ret []v1.Range
 	startTime := r.Start

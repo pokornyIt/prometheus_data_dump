@@ -1,11 +1,20 @@
 package main
 
-import "github.com/prometheus/common/model"
+import (
+	"github.com/prometheus/common/model"
+)
 
 const (
 	LabelName     = "__name__"
 	LabelInstance = "instance"
 )
+
+type OrganizedForFile struct {
+	From string            `yaml:"from" json:"from"`
+	To   string            `yaml:"to" json:"to"`
+	Step int               `yaml:"step" json:"step"`
+	Data OrganizedServices `yaml:"data" json:"data"`
+}
 
 type OrganizedServices []OrganizedSeries
 

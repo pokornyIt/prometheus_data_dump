@@ -25,7 +25,10 @@ Program has config file.
 server: prometehus.server
 path: ./dump
 days: 2
+from: "2021-02-01 10:30"
+to: "2021-02-03 14:50"
 step: 10
+storeDirect: true
 sources:
   - instance: 'localhost.+'
     includeGo: false
@@ -34,16 +37,50 @@ sources:
 - **server** - FQDN or IP address of prometheus server
 - **path** - Path for store export data
 - **days** - Number of day to exports (1-60)
+- **from** - From date and time dump data 
+- **to** - To date and time dump data 
 - **step** - Step for time slice in seconds (5 - 3600), default 10
+- **storeDirect** - Store dump data direct to path or create inside path new subdirectory. Subdirectory name is *yyyyMMdd-HH:mm*   
 - **sources** - Array for limit data to only for instance list name.
-  - **instance** - Instance name for what oyu can export all data
-  - **excludeGo** - Include metrics name starts with 'go_'. Default mean exclude this metrics
+  - **instance** - Instance name for what you can export all data
+  - **excludeGo** - Include metrics name starts with '*go_*'. Default mean exclude this metrics
+
+If **from** and **to** values are defined, the **days** value is ignored.  
 
 ## Configuration line parameters
 - **--config.show** - show actual configuration and exit
 - **--config.file=cfg.yml** - define config file, default is cfg.yml
-- **--path=./dump** - overwrite path defined in  config file
+- **--path=./dump** - overwrite the path defined in config file
 - **--server=IP** - FQDN or IP address of prometheus server
+- **--from=date** - From date and time dump data, overwrite value in config file
+- **--to=date** - To date and time dump data, overwrite value in config file
+- **--back=days** - Number of day to export from now back, overwrite value in config file
+
+## Example start program
+Program run with all configuration from config file named "all-in.json":
+```shell
+./prometheus_data_dump --config.file=all-in.yml
+
+# short version
+./prometheus_data_dump -c all-in.yml
+```
+
+Program show actual configuration:
+```shell
+./prometheus_data_dump --config.file=all-in.yml --config.show
+
+# short version
+./prometheus_data_dump -c all-in.yml -v
+```
+
+Program run with overwrite configuration data:  
+```shell
+./prometheus_data_dump --config.file "all-in.yml" --path "/tmp/dump" --from "2021-02-18 10:00" --to "2021-02-19 12:00" --server=c01.server.com --log.level=debug 
+
+# short version
+./prometheus_data_dump -c all-in.yml  -p "/tmp/dump" -f "2021-02-18 10:00" -t "2021-02-19 12:00" -s c01.server.com --log.level=debug
+```
+
 
 # Contribute
 We welcome any contributions. Please fork the project on GitHub and open Pull Requests for any proposed changes.

@@ -24,13 +24,15 @@ func prepareApi(configuration *Configuration) (v1api v1.API, err error) {
 	return v1api, nil
 }
 
-func collectSeriesList(v1api v1.API, sources Sources, dayBack int) (labels []model.LabelSet, err error) {
+func collectSeriesList(v1api v1.API, sources Sources, dateRange v1.Range) (labels []model.LabelSet, err error) {
 	_ = level.Debug(logger).Log("msg", fmt.Sprintf("entry collect series data for instance %s", sources.Instance))
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	instances := fmt.Sprintf("{%s=~\"%s\"}", LabelInstance, sources.Instance)
 
-	dataSet, warnings, err := v1api.Series(ctx, []string{instances}, time.Now().Add(-time.Hour*time.Duration(24*dayBack)), time.Now())
+	_ = level.Debug(logger).Log("msg", fmt.Sprintf("instance filter: %s", instances))
+
+	dataSet, warnings, err := v1api.Series(ctx, []string{instances}, dateRange.Start, dateRange.End)
 	if err != nil {
 		_ = level.Error(logger).Log("msg", "problem query Prometheus API", "error", err)
 		return nil, err

@@ -18,11 +18,12 @@ import (
 )
 
 const (
-	applicationName = "prometheus_export"
-	letterBytes     = "abcdefghijklmnopqrstuvwxyz" // map for random string
-	letterIdxBits   = 6                            // 6 bits to represent a letter index
-	letterIdxMask   = 1<<letterIdxBits - 1         // All 1-bits, as many as letterIdxBits
-	letterIdxMax    = 63 / letterIdxBits           // # of letter indices fitting in 63 bits
+	applicationName   = "prometheus_export"
+	letterBytes       = "abcdefghijklmnopqrstuvwxyz" // map for random string
+	letterIdxBits     = 6                            // 6 bits to represent a letter index
+	letterIdxMask     = 1<<letterIdxBits - 1         // All 1-bits, as many as letterIdxBits
+	letterIdxMax      = 63 / letterIdxBits           // # of letter indices fitting in 63 bits
+	timeRangeOverSize = 15                           // minutes used for prolong data before and after Str/Stop
 )
 
 var (
@@ -72,13 +73,18 @@ func main() {
 	timeStart = time.Now().UTC()
 
 	err := config.LoadFile(*configFile)
+
 	if *showConfig {
 		_ = level.Info(logger).Log("msg", "show only configuration ane exit")
 
 		if err != nil {
 			fmt.Print(config.print())
 		} else {
-			fmt.Printf("%s%s", config.print(), printTimeRanges(generateRangeTable(initRange())))
+			if config.useRange() {
+				fmt.Printf("%s%s", config.print(), printTimeRanges(generateRangeTable(initRangeFromTo(configFrom, configTo))))
+			} else {
+				fmt.Printf("%s%s", config.print(), printTimeRanges(generateRangeTable(initRange())))
+			}
 		}
 		os.Exit(0)
 	}
@@ -97,20 +103,26 @@ func main() {
 	}
 
 	start := time.Now()
-	timeRangeSplit := generateRangeTable(initRange())
+	var dateRange v1.Range
+	if config.useRange() {
+		dateRange = initRangeFromTo(configFrom, configTo)
+	} else {
+		dateRange = initRange()
+	}
+	timeRangeSplit := generateRangeTable(dateRange)
 	_ = level.Info(logger).Log("msg", fmt.Sprintf("requried time split to %d time ranges", len(timeRangeSplit)))
 
 	// process for all data
 	services := OrganizedServices{}
 	for _, source := range config.Sources {
-		services = processOneSources(v1Api, source, services)
+		services = processOneSources(v1Api, source, services, dateRange)
 	}
 	startReadApi(v1Api, timeRangeSplit, services)
 	_ = level.Info(logger).Log("msg", fmt.Sprintf("program successful ends after %s", time.Since(start).String()))
 }
 
-func processOneSources(api v1.API, sources Sources, services OrganizedServices) OrganizedServices {
-	labels, err := collectSeriesList(api, sources, config.Days)
+func processOneSources(api v1.API, sources Sources, services OrganizedServices, timeRange v1.Range) OrganizedServices {
+	labels, err := collectSeriesList(api, sources, timeRange)
 	if err != nil {
 		return services
 	}
@@ -118,7 +130,7 @@ func processOneSources(api v1.API, sources Sources, services OrganizedServices) 
 	storage := NewStorage(config.Path, sources)
 	_ = storage.prepareDirectory()
 	organized := splitToSeriesNameAndInstance(labels, storage)
-	storage.saveOrganized(organized)
+	storage.saveOrganized(organized, timeRange)
 
 	return append(services, organized...)
 }
