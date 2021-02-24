@@ -1,4 +1,4 @@
-![Build Status](https://github.com/pokornyIt/prometheus_data_dump/workflows/Build/badge.svg)
+![Build Status](https://github.com/pokornyIt/prometheus_data_dump/workflows/Release/badge.svg)
 [![GitHub](https://img.shields.io/github/license/pokornyIt/prometheus_data_dump)](/LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pokornyIt/prometheus_data_dump)](https://goreportcard.com/report/github.com/pokornyIt/prometheus_data_dump)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/pokornyit/prometheus_data_dump?label=latest)](https://github.com/pokornyIt/prometheus_data_dump/releases/latest)
