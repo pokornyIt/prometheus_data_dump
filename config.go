@@ -10,48 +10,66 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 )
 
-//const connectionTimeout = 10
+// const connectionTimeout = 10
 const (
 	TimeFormat      = "2006-01-02 15:04"
 	DefaultDataPath = "./dump"
+	DefaultPort     = 9090
+	MinPort         = 1025
+	MaxPort         = 65535
 )
 
 type Configuration struct {
-	Server      string    `yaml:"server" json:"server"`           // FQDN or IP address of server
-	Path        string    `yaml:"path" json:"path"`               // path to store directory
-	Days        int       `yaml:"days" json:"days"`               // days back to dump
-	From        string    `yaml:"from" json:"from"`               // date from in yyyy-mm-dd HH:MM format
-	To          string    `yaml:"to" json:"to"`                   // date to in yyyy-mm-dd HH:MM format
-	Sources     []Sources `yaml:"sources" json:"sources"`         // list of collected sources
-	Step        int       `yaml:"step" json:"step"`               // step data dump 5 - 3600 sec
-	StoreDirect bool      `yaml:"storeDirect" json:"storeDirect"` // don't create subdirectory with store time
+	Server      string    `yaml:"server" json:"server"`                               // FQDN or IP address of server
+	Port        uint      `yaml:"port,omitempty" json:"port,omitempty"`               // API port if not defined
+	Path        string    `yaml:"path" json:"path"`                                   // path to store directory
+	Days        int       `yaml:"days,omitempty" json:"days,omitempty"`               // days back to dump
+	From        string    `yaml:"from,omitempty" json:"from,omitempty"`               // date from in yyyy-mm-dd HH:MM format
+	To          string    `yaml:"to,omitempty" json:"to,omitempty"`                   // date to in yyyy-mm-dd HH:MM format
+	Step        int       `yaml:"step,omitempty" json:"step,omitempty"`               // step data dump 5 - 3600 sec
+	StoreDirect bool      `yaml:"storeDirect,omitempty" json:"storeDirect,omitempty"` // don't create subdirectory with store time
+	Sources     []Sources `yaml:"sources,omitempty" json:"sources,omitempty"`         // list of collected sources
+	Labels      []Labels  `yaml:"labels,omitempty" json:"labels,omitempty"`           // label/value pairs for select data
 }
 
 type Sources struct {
-	Instance  string `yaml:"instance" json:"instance"`   // instance names uses wildcards .+ mean all
-	IncludeGo bool   `yaml:"includeGo" json:"includeGo"` // exclude standard go_ metrics (__name__)
+	Instance  string `yaml:"instance,omitempty" json:"instance,omitempty"`   // instance names uses wildcards .+ mean all
+	IncludeGo bool   `yaml:"includeGo,omitempty" json:"includeGo,omitempty"` // exclude standard go_ metrics (__name__)
 }
+
+type Labels struct {
+	Label          string `yaml:"label" json:"label"`                                       // label name
+	Value          string `yaml:"value" json:"value"`                                       // label value include wildcards .+
+	ExcludeMetrics string `yaml:"excludeMetrics,omitempty" json:"excludeMetrics,omitempty"` // exclude metrics name GOLang regex if omitted get all
+}
+
+//type Sources map[string]string // define sources
 
 var (
 	showConfig    = kingpin.Flag("config.show", "Show actual configuration and ends").Short('v').Default("false").Bool()
-	configFile    = kingpin.Flag("config.file", "Configuration file default is \"cfg.yml\".").Short('c').PlaceHolder("cfg.yml").Default("cfg.yml").String()
+	configFile    = kingpin.Flag("config.file", "Configuration file default is \"cfg.yml\".").Short('c').PlaceHolder("cfg.yml").Default("cfg.yml").ExistingFile()
 	directoryData = kingpin.Flag("path", "Path where store export json data").Short('p').PlaceHolder("path").Default(DefaultDataPath).String()
 	server        = kingpin.Flag("server", "Prometheus server FQDN or IP address").Short('s').PlaceHolder("server").Default("").String()
-	from          = kingpin.Flag("from", "Start datetime for export data").Short('f').PlaceHolder("yyyy-mm-dd HH:MM").Default("").String()
-	to            = kingpin.Flag("to", "End datetime for export data").Short('t').PlaceHolder("yyyy-mm-dd HH:MM").Default("").String()
-	back          = kingpin.Flag("back", "Export data back from now").Short('b').Default("0").Int()
-	config        = &Configuration{
+	port          = kingpin.Flag("port", fmt.Sprintf("Prometheus server API port (number between %d  and %d", MinPort, MaxPort)).
+			Short('n').PlaceHolder("9090").Default("0").Uint()
+	from   = kingpin.Flag("from", "Start datetime for export data").Short('f').PlaceHolder("yyyy-mm-dd HH:MM").Default("").String()
+	to     = kingpin.Flag("to", "End datetime for export data").Short('t').PlaceHolder("yyyy-mm-dd HH:MM").Default("").String()
+	back   = kingpin.Flag("back", "Export data back from now").Short('b').Default("0").Int()
+	config = &Configuration{
 		Server:      "",
+		Port:        DefaultPort,
 		Path:        DefaultDataPath,
 		Days:        1,
-		Sources:     []Sources{},
 		Step:        10,
 		From:        "",
 		To:          "",
 		StoreDirect: false,
+		Sources:     []Sources{},
+		Labels:      []Labels{},
 	}
 	configFrom time.Time = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	configTo   time.Time = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
@@ -98,6 +116,9 @@ func (c *Configuration) overWriteFromLine() {
 	if len(*server) > 0 {
 		c.Server = *server
 	}
+	if *port > 0 {
+		c.Port = *port
+	}
 	if len(*directoryData) > 0 && *directoryData != DefaultDataPath {
 		c.Path = *directoryData
 	}
@@ -119,6 +140,9 @@ func (c *Configuration) validate() error {
 		if !match || err != nil {
 			return errors.New("defined Prometheus server address isn't valid FQDN or IP address")
 		}
+	}
+	if !(c.Port >= MinPort && c.Port <= 65536) {
+		return fmt.Errorf("defined port is out of range %d - %d", MinPort-1, MaxPort+1)
 	}
 	if len(c.Path) < 1 {
 		c.Path = DefaultDataPath
@@ -174,6 +198,14 @@ func (c *Configuration) validate() error {
 	if len(c.Sources) < 1 {
 		return errors.New("not define any sources")
 	}
+	if len(c.Labels) > 1 {
+		for _, label := range c.Labels {
+			err = label.validate()
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -197,7 +229,7 @@ func (c *Configuration) LoadFile(filename string) error {
 
 func (c *Configuration) print() string {
 	a := fmt.Sprintf("\r\n%s\r\nActual configuration:\r\n", applicationName)
-	a = fmt.Sprintf("%sServer:       [%s]\r\n", a, c.Server)
+	a = fmt.Sprintf("%sServer:       [%s:%d]\r\n", a, c.Server, c.Port)
 	a = fmt.Sprintf("%sData path:    [%s]\r\n", a, c.Path)
 	if c.useRange() {
 		a = fmt.Sprintf("%sFrom:         [%s]\r\n", a, configFrom.Format(time.RFC3339))
@@ -213,11 +245,19 @@ func (c *Configuration) print() string {
 			a = fmt.Sprintf("%s              [%s]\r\n", a, source.print())
 		}
 	}
+	if len(c.Labels) == 0 {
+		a = fmt.Sprintf("%sLabels:       [N/A]\r\n", a)
+	} else {
+		a = fmt.Sprintf("%sLabels:\r\n", a)
+		for _, l := range c.Labels {
+			a = fmt.Sprintf("%s              [%s]\r\n", a, l.print())
+		}
+	}
 	return a
 }
 
 func (c *Configuration) serverAddress() string {
-	return fmt.Sprintf("http://%s:9090", c.Server)
+	return fmt.Sprintf("http://%s:%d", c.Server, c.Port)
 }
 
 func (c *Configuration) useRange() bool {
@@ -227,4 +267,25 @@ func (c *Configuration) useRange() bool {
 func (s *Sources) print() string {
 	a := fmt.Sprintf("%s (%t)", s.Instance, s.IncludeGo)
 	return a
+}
+
+func (l *Labels) print() string {
+	a := fmt.Sprintf("%s=~\"%s\" (%t)", l.Label, l.Value, len(l.ExcludeMetrics) > 0)
+	return a
+}
+
+func (l *Labels) validate() error {
+	if len(l.Label) == 0 {
+		return fmt.Errorf("label must be defined")
+	}
+	if strings.Compare(strings.ToLower(l.Label), "instance") == 0 {
+		return fmt.Errorf("label can't be \"instance\"")
+	}
+	if strings.Contains(l.Label, "+") {
+		return fmt.Errorf("label must be defined without wildcards")
+	}
+	if len(l.Value) == 0 {
+		return fmt.Errorf("value for lable [%s] must be defined", l.Label)
+	}
+	return nil
 }

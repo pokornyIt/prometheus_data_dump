@@ -117,6 +117,10 @@ func main() {
 	for _, source := range config.Sources {
 		services = processOneSources(v1Api, source, services, dateRange)
 	}
+	// process labels
+	if len(config.Labels) > 0 {
+		services = processLabels(v1Api, config.Labels, services, dateRange)
+	}
 	startReadApi(v1Api, timeRangeSplit, services)
 	_ = level.Info(logger).Log("msg", fmt.Sprintf("program successful ends after %s", time.Since(start).String()))
 }
@@ -128,6 +132,20 @@ func processOneSources(api v1.API, sources Sources, services OrganizedServices, 
 	}
 
 	storage := NewStorage(config.Path, sources)
+	_ = storage.prepareDirectory()
+	organized := splitToSeriesNameAndInstance(labels, storage)
+	storage.saveOrganized(organized, timeRange)
+
+	return append(services, organized...)
+}
+
+func processLabels(api v1.API, lbl []Labels, services OrganizedServices, timeRange v1.Range) OrganizedServices {
+	labels, err := collectLabelsSeriesList(api, lbl, timeRange)
+	if err != nil {
+		return services
+	}
+
+	storage := NewNameStorage(config.Path, "labels")
 	_ = storage.prepareDirectory()
 	organized := splitToSeriesNameAndInstance(labels, storage)
 	storage.saveOrganized(organized, timeRange)
