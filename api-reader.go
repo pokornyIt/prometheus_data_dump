@@ -54,6 +54,53 @@ func collectSeriesList(v1api v1.API, sources Sources, dateRange v1.Range) (label
 	return labels, nil
 }
 
+func collectLabelsSeriesList(v1api v1.API, lbl []Labels, dateRange v1.Range) (labels []model.LabelSet, err error) {
+	_ = level.Debug(logger).Log("msg", fmt.Sprintf("entry collect series data for instance labels"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	var filter []string
+	var re []*regexp.Regexp
+	msg := ""
+	separator := ""
+	for _, l := range lbl {
+		instances := fmt.Sprintf("{%s=~\"%s\"}", l.Label, l.Value)
+		filter = append(filter, instances)
+		_ = level.Debug(logger).Log("msg", fmt.Sprintf("instance filter: %s", instances))
+		msg = fmt.Sprintf("%s%s%s=~\"%s\"", msg, separator, l.Label, l.Value)
+		separator = ", "
+		if len(l.ExcludeMetrics) > 0 {
+			r, err := regexp.Compile(l.ExcludeMetrics)
+			if err == nil {
+				re = append(re, r)
+			}
+		}
+	}
+
+	dataSet, warnings, err := v1api.Series(ctx, filter, dateRange.Start, dateRange.End)
+	if err != nil {
+		_ = level.Error(logger).Log("msg", "problem query Prometheus API", "error", err)
+		return nil, err
+	}
+	if len(warnings) > 0 {
+		_ = level.Warn(logger).Log("msg", "Prometheus API return warning", "warn", err)
+	}
+	labels = []model.LabelSet{}
+	for _, set := range dataSet {
+		allowed := true
+		for _, r := range re {
+			if !r.Match([]byte(set[LabelName])) {
+				allowed = false
+				break
+			}
+		}
+		if allowed {
+			labels = append(labels, set)
+		}
+	}
+	_ = level.Debug(logger).Log("msg", fmt.Sprintf("collect %d from %d series for instance %s", len(labels), len(dataSet), msg))
+	return labels, nil
+}
+
 func readQueryRange(api v1.API, labelSet model.LabelSet, timeRange v1.Range) (data model.Value, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

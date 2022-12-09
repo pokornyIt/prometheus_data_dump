@@ -4,25 +4,28 @@
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/pokornyit/prometheus_data_dump?label=latest)](https://github.com/pokornyIt/prometheus_data_dump/releases/latest)
 
 # Prometheus Data Dump
+
 Project designed to export data from the Prometheus database.
-Exports are intend for further processing in other systems that do not support 
+Exports are intend for further processing in other systems that do not support
 direct integration to the Prometheus system as a data source.
 
-Each Prometheus metric is export to a separate file. 
-The data is export for a defined number of days back and can be limited to selected "jobs". 
-Existing exported data is overwrite by the new export. 
-A special file "metrics-meta.json" is exported, which contains a description of individual metrics. 
+Each Prometheus metric is export to a separate file.
+The data is export for a defined number of days back and can be limited to selected "jobs".
+Existing exported data is overwritten by the new export.
+A special file "metrics-meta.json" is exported, which contains a description of individual metrics.
 
 # Program start
 
-The program requires the entry of selected configuration parameters for its start. 
+The program requires the entry of selected configuration parameters for its start.
 This is mainly the address of the Prometheus server from which the data will be exported.
 
 ## Configuration file
 
 Program has config file.
+
 ```yaml
-server: prometehus.server
+server: prometheus.server
+port: 9090
 path: ./dump
 days: 2
 from: "2021-02-01 10:30"
@@ -32,32 +35,55 @@ storeDirect: true
 sources:
   - instance: 'localhost.+'
     includeGo: false
+labels:
+  - name: 'node'
+    value: 'my.node.+'
+    excludeMetrics: '^node_.*'
 ``` 
 
 - **server** - FQDN or IP address of prometheus server
+- **port** - API port default is 9090 (not required)
 - **path** - Path for store export data
-- **days** - Number of day to exports (1-60)
-- **from** - From date and time dump data 
-- **to** - To date and time dump data 
-- **step** - Step for time slice in seconds (5 - 3600), default 10
-- **storeDirect** - Store dump data direct to path or create inside path new subdirectory. Subdirectory name is *yyyyMMdd-HH:mm*   
+- **days** - Number of day to exports (1-60) (not required)
+- **from** - From date and time dump data
+- **to** - To date and time dump data
+- **step** - Step for time slice in seconds (5 - 3600), default 10 (not required)
+- **storeDirect** - Store dump data direct to path or create inside path new subdirectory. Subdirectory name is
+  *yyyyMMdd-HH:mm*
 - **sources** - Array for limit data to only for instance list name.
-  - **instance** - Instance name for what you can export all data
-  - **excludeGo** - Include metrics name starts with '*go_*'. Default mean exclude this metrics
+    - **instance** - Instance name for what you can export all data
+    - **excludeGo** - Include metrics name starts with '*go_*'. Default mean exclude this metrics
+- **labels** - Array of labels with its values that load into subdirectory labels
+    - **name** - Label name
+    - **value** - Label values
+    - **excludeMetrics** - Exclude metrics names match GO Lang regex, if regex not valid omitted (not required)
 
-If **from** and **to** values are defined, the **days** value is ignored.  
+A values in the **labels** select all metrics contains one of definition (OR function).
+The **excludeMetrics** are applied to all metrics selected with defined labels.
+
+If **from** and **to** values are defined, the **days** value is ignored.
+Valid formats for **form** and **to** value:
+
+- YYYY-mm-dd HH:MM
+- YYYY-mm-dd HH:MM:ss
+- YYYY-mm-ddTHH:MM
+- YYYY-mm-ddTHH:MM:ss
 
 ## Configuration line parameters
+
 - **--config.show** - show actual configuration and exit
 - **--config.file=cfg.yml** - define config file, default is cfg.yml
 - **--path=./dump** - overwrite the path defined in config file
 - **--server=IP** - FQDN or IP address of prometheus server
+- **--port=11102** - API port, default value is 9090
 - **--from=date** - From date and time dump data, overwrite value in config file
 - **--to=date** - To date and time dump data, overwrite value in config file
 - **--back=days** - Number of day to export from now back, overwrite value in config file
 
 ## Example start program
+
 Program run with all configuration from config file named "all-in.json":
+
 ```shell
 ./prometheus_data_dump --config.file=all-in.yml
 
@@ -66,6 +92,7 @@ Program run with all configuration from config file named "all-in.json":
 ```
 
 Program show actual configuration:
+
 ```shell
 ./prometheus_data_dump --config.file=all-in.yml --config.show
 
@@ -73,7 +100,8 @@ Program show actual configuration:
 ./prometheus_data_dump -c all-in.yml -v
 ```
 
-Program run with overwrite configuration data:  
+Program run with overwrite configuration data:
+
 ```shell
 ./prometheus_data_dump --config.file "all-in.yml" --path "/tmp/dump" --from "2021-02-18 10:00" --to "2021-02-19 12:00" --server=c01.server.com --log.level=debug 
 
@@ -81,8 +109,9 @@ Program run with overwrite configuration data:
 ./prometheus_data_dump -c all-in.yml  -p "/tmp/dump" -f "2021-02-18 10:00" -t "2021-02-19 12:00" -s c01.server.com --log.level=debug
 ```
 
-
 # Contribute
+
 We welcome any contributions. Please fork the project on GitHub and open Pull Requests for any proposed changes.
 
-Please note that we will not merge any changes that encourage insecure behaviour. If in doubt please open an Issue first to discuss your proposal. 
+Please note that we will not merge any changes that encourage insecure behaviour. If in doubt please open an Issue first
+to discuss your proposal. 

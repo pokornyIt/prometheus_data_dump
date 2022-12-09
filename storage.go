@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/go-kit/kit/log/level"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,7 +12,7 @@ import (
 	"time"
 )
 
-// One Storage instance for one Source path
+// Storage instance for one Source path
 type Storage struct {
 	MainPath   string `yaml:"-" json:"-"`
 	TimePath   string `yaml:"-" json:"-"`
@@ -23,6 +22,10 @@ type Storage struct {
 }
 
 func NewStorage(path string, sources Sources) *Storage {
+	return NewNameStorage(path, sources.Instance)
+}
+
+func NewNameStorage(path string, sources string) *Storage {
 	storage := Storage{}
 	var err error
 	storage.MainPath, err = filepath.Abs(path)
@@ -33,7 +36,7 @@ func NewStorage(path string, sources Sources) *Storage {
 	if config.StoreDirect {
 		storage.TimePath = storage.MainPath
 	}
-	storage.SourcePath = filepath.Join(storage.TimePath, cleanFilePathName(sources.Instance))
+	storage.SourcePath = filepath.Join(storage.TimePath, cleanFilePathName(sources))
 	storage.Prepared = false
 	storage.Accessible = false
 	_ = level.Debug(logger).Log("msg", fmt.Sprintf("final main store path %s", storage.TimePath))
@@ -86,7 +89,7 @@ func (s *Storage) saveAllData(saveAllData []SaveAllData, fileName string) {
 
 func (s *Storage) saveJson(data []byte, fullFileName string) {
 	if s.Accessible {
-		err := ioutil.WriteFile(fullFileName, data, os.ModePerm)
+		err := os.WriteFile(fullFileName, data, os.ModePerm)
 		f := filepath.Base(fullFileName)
 		if err != nil {
 			_ = level.Error(logger).Log("msg", "problem save file", "error", err, "file", f)

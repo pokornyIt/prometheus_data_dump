@@ -46,11 +46,26 @@ func dataMatrix(data model.Value) []SaveData {
 		_ = level.Error(logger).Log("msg", "in returned data is zero values")
 		return nil
 	}
-	if matrix.Len() > 1 {
-		_ = level.Error(logger).Log("msg", "in returned data are more than one metrics, system use only first one")
-	}
-	for _, value := range matrix[0].Values {
+	idx := 0
+	max := len(matrix[idx].Values)
+	maxLabels := len(matrix[idx].Metric)
 
+	if matrix.Len() > 1 {
+		for i, stream := range matrix {
+			if len(stream.Values) > max {
+				max = len(stream.Values)
+				idx = i
+				maxLabels = len(stream.Metric)
+			} else if len(stream.Values) == max && len(stream.Metric) > maxLabels {
+				maxLabels = len(stream.Metric)
+				max = len(stream.Values)
+				idx = i
+			}
+		}
+		//_ = level.Debug(logger).Log("msg", "in returned data are more than one metrics, use only one")
+	}
+
+	for _, value := range matrix[idx].Values {
 		saveData = append(saveData, SaveData{
 			DateTime: time.Unix(0, int64(value.Timestamp)*int64(time.Millisecond)).Format(time.RFC3339),
 			Value:    float64(value.Value),
